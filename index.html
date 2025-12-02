@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>S Sport Plus - Pusula</title>
-<!-- CSS Dosyası (Aynı klasörde olduğunu varsayıyoruz) -->
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" type="image/png" href="favicon.png">
 <!-- Font Awesome -->
@@ -99,7 +98,7 @@
                     <button class="filter-btn link-btn" onclick="openWizard()"><i class="fas fa-robot"></i> İade Asistanı</button>
                     <button class="filter-btn link-btn" onclick="openSales()"><i class="fas fa-headset"></i> TeleSatış</button>
                     <button class="filter-btn link-btn" onclick="openPenaltyGame()"><i class="fas fa-futbol"></i> Oyun</button>
-                    <!-- YENİ: Kalite Dashboard Butonu -->
+                    <!-- Kalite Dashboard Butonu -->
                     <button class="filter-btn link-btn" onclick="openQualityArea()"><i class="fas fa-chart-pie"></i> Kalite</button>
                 </div>
             </div>
@@ -193,7 +192,7 @@
     <div class="modal-content" style="max-width: 1100px; background: #f8f9fa;">
         <span class="close-modal" onclick="closeModal('quality-modal')">&times;</span>
         
-        <!-- Dashboard Header -->
+        <!-- Header -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom: 20px;">
             <div>
                 <h2 style="margin:0; color:var(--primary);"><i class="fa-solid fa-chart-line"></i> Kalite Yönetim Paneli</h2>
@@ -201,18 +200,25 @@
             </div>
             
             <!-- Admin Kontrolleri -->
-            <div id="admin-quality-controls" style="display:none; gap:10px;">
-                <div style="font-weight:bold; display:flex; align-items:center; gap: 5px;">
-                    <select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 200px; padding:5px; height: 35px; margin:0; font-size: 0.8rem;"></select>
-                </div>
+            <div id="admin-quality-controls" style="display:none; gap:10px; align-items:center;">
+                <!-- YENİ: Grup Filtresi -->
+                <select id="group-select-filter" class="swal2-input" style="width: 150px; padding:5px; height: 35px; margin:0; font-size: 0.8rem;" onchange="filterAgentsByGroup()">
+                    <option value="all">Tüm Gruplar</option>
+                </select>
+                
+                <!-- İsim Filtresi -->
+                <select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 200px; padding:5px; height: 35px; margin:0; font-size: 0.8rem;">
+                    <option value="all">-- Tüm Temsilciler --</option>
+                </select>
+
                 <button class="add-btn" style="background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;" onclick="logEvaluationPopup()"><i class="fas fa-plus"></i> Ekle</button>
                 <button class="admin-btn" style="background:var(--success); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;" onclick="exportEvaluations()"><i class="fas fa-file-csv"></i> Rapor</button>
             </div>
         </div>
 
-        <!-- Dashboard KPI Kartları -->
+        <!-- Dashboard Kartları -->
         <div class="dash-grid-container">
-            <!-- Kart 1: Genel Puan -->
+            <!-- Kart 1 -->
             <div class="dash-card" style="border-left: 4px solid var(--info);">
                 <div class="dash-card-icon" style="background: var(--info); color: var(--info);"><i class="fa-solid fa-star"></i></div>
                 <div class="dash-card-title">Ortalama Kalite Puanı</div>
@@ -223,7 +229,7 @@
                 </div>
             </div>
 
-            <!-- Kart 2: Toplam Adet -->
+            <!-- Kart 2 -->
             <div class="dash-card" style="border-left: 4px solid var(--success);">
                 <div class="dash-card-icon" style="background: var(--success); color: var(--success);"><i class="fa-solid fa-headset"></i></div>
                 <div class="dash-card-title">Değerlendirilen Çağrı</div>
@@ -231,7 +237,7 @@
                 <div class="dash-card-sub"><span style="color:var(--success);">Aktif</span> performans kaydı</div>
             </div>
 
-            <!-- Kart 3: Hedef -->
+            <!-- Kart 3 -->
             <div class="dash-card" style="border-left: 4px solid var(--warning);">
                 <div class="dash-card-icon" style="background: var(--warning); color: var(--warning);"><i class="fa-solid fa-bullseye"></i></div>
                 <div class="dash-card-title">Hedef Tutma Oranı</div>
@@ -242,7 +248,7 @@
             <!-- Ana İçerik: ÇAĞRI LİSTESİ (SOL) - GRUP SIRALAMASI (SAĞ) -->
             <div class="dash-main-area">
                 
-                <!-- SOL: ÇAĞRI LİSTESİ (ESKİ CHART YERİ, ARTIK LİSTE) -->
+                <!-- SOL: ÇAĞRI LİSTESİ -->
                 <div class="dash-chart-box" style="overflow: hidden; display:flex; flex-direction:column; padding:0;">
                     <div class="dash-list-header" style="background:white; border-bottom:1px solid #eee; padding: 15px;">
                         <span><i class="fas fa-list-ul"></i> Değerlendirme Geçmişi</span>
@@ -253,7 +259,7 @@
                     </div>
                 </div>
 
-                <!-- SAĞ: GRUP SIRALAMASI (ESKİ LİSTE YERİ, ARTIK RANKING) -->
+                <!-- SAĞ: GRUP SIRALAMASI -->
                 <div class="dash-list-box">
                     <div class="dash-list-header">
                         <span><i class="fas fa-trophy" style="color:gold;"></i> Grup Sıralaması</span>
@@ -277,14 +283,13 @@
             </div>
         </div>
         
-        <!-- Gizli yedek liste (eski yapıdan kalma) -->
+        <!-- Gizli yedek liste -->
         <div id="evaluations-list" style="display:none;"></div>
 
     </div>
 </div>
 
 <div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div>
-<!-- JS Dosyası (Aynı klasörde olduğunu varsayıyoruz) -->
 <script src="js/app.js"></script>
 <script>
     function toggleUserDropdown() {
