@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>S Sport Plus - Pusula</title>
-<!-- CSS Dosyası -->
-<link rel="stylesheet" href="css/style.css">
+<!-- DÜZELTME: Dosya yolları kök dizine göre ayarlandı -->
+<link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" href="favicon.png">
 <!-- Font Awesome -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -202,12 +202,12 @@
             
             <!-- Admin Kontrolleri -->
             <div id="admin-quality-controls" style="display:none; gap:10px; align-items: center;">
-                <!-- Grup Filtresi -->
-                <select id="group-select-filter" class="swal2-input" style="width: 150px; height: 35px; margin:0; font-size:0.8rem; padding:0 5px;" onchange="filterAgentsByGroup()">
+                 <!-- Grup Filtresi -->
+                 <select id="group-select-filter" class="swal2-input" style="width: 150px; height: 35px; margin:0; font-size:0.8rem; padding:0 5px;" onchange="filterAgentsByGroup()">
                     <option value="all">Tüm Gruplar</option>
                 </select>
-                <!-- Temsilci Seçimi -->
-                <select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 180px; padding:0 5px; height: 35px; margin:0; font-size: 0.8rem;">
+                <!-- İsim Filtresi -->
+                <select id="agent-select-admin" class="swal2-input" onchange="updateDashboardUI()" style="width: 200px; padding:5px; height: 35px; margin:0; font-size: 0.8rem;">
                     <option value="all">-- Tüm Ekip --</option>
                 </select>
                 <button class="add-btn" style="background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;" onclick="logEvaluationPopup()"><i class="fas fa-plus"></i> Ekle</button>
@@ -223,7 +223,7 @@
                 <div class="dash-card-title">Ortalama Kalite Puanı</div>
                 <div class="dash-card-value" id="dash-total-score">--</div>
                 <div class="dash-card-sub">
-                    <select id="month-select-filter" onchange="fetchEvaluationsForAgent()" style="border:none; background:transparent; font-size:0.8rem; font-weight:bold; color:#666; cursor:pointer;"></select>
+                    <select id="month-select-filter" onchange="updateDashboardUI()" style="border:none; background:transparent; font-size:0.8rem; font-weight:bold; color:#666; cursor:pointer;"></select>
                     dönemi
                 </div>
             </div>
@@ -282,13 +282,15 @@
             </div>
         </div>
         
+        <!-- Gizli yedek liste -->
         <div id="evaluations-list" style="display:none;"></div>
+
     </div>
 </div>
 
 <div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div>
-<!-- JS Dosyasını Çağır -->
-<script src="js/app.js"></script>
+<!-- DÜZELTME: Dosyalar aynı klasörde -->
+<script src="app.js"></script>
 <script>
     function toggleUserDropdown() {
         const dropdown = document.getElementById('userDropdown');
