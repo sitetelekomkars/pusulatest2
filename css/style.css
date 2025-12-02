@@ -98,14 +98,6 @@ body {
 .brand-text .main-text { font-size: 1.0rem; font-weight: 700; color: #fff; letter-spacing: 0.5px; white-space: nowrap; }
 .brand-text .sub-text { font-size: 1.0rem; font-weight: 300; color: rgba(255,255,255,0.6); white-space: nowrap; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 8px; }
 .header-controls { display: flex; align-items: center; gap:10px; }
-.action-btn { 
-    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); 
-    color: #ccc; padding: 5px 10px; border-radius: 4px; cursor: pointer; 
-    font-weight: 500; font-size: 0.75rem; display: flex; align-items: center; 
-    gap: 6px; transition: all 0.2s; 
-}
-.action-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
-.action-btn.active { background: var(--secondary); border-color: var(--secondary); color: #0e1b42; }
 
 /* KULLANICI MENÜSÜ & DROPDOWN */
 .user-menu-wrapper { position: relative; }
@@ -187,7 +179,6 @@ body {
     border-color: rgba(255, 255, 255, 0.4); 
     transform: translateY(-1px);
 }
-/* Aktif Buton */
 .filter-btn.active { 
     background-color: #fabb00 !important; 
     color: #0e1b42 !important; 
@@ -299,7 +290,7 @@ body.editing .edit-icon { display: block !important; }
 .tag-update { background: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
 .tag-info { background: #e3f2fd; color: #0277bd; border: 1px solid #bbdefb; }
 
-/* PENALTY & FUNCTIONAL STYLES */
+/* PENALTY & FUNCTIONAL STYLES (Restored) */
 .penalty-stats { background: #111; color: #fff; padding: 10px 15px; border-radius: 6px; display:flex; justify-content:space-between; font-weight:700; margin-bottom: 15px; border: 1px solid #333; }
 .penalty-stats span span { color: var(--secondary); }
 .joker-btn { background: #6a1b9a; color: white; padding: 10px; border-radius: 6px; border:none; cursor:pointer; flex:1; margin:0 5px; font-weight: bold; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
