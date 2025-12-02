@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>S Sport Plus - Pusula</title>
+<!-- DÜZELTME: CSS dosyası 'css' klasöründen çağrılıyor -->
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" type="image/png" href="favicon.png">
 <!-- Font Awesome -->
@@ -12,7 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- Crypto JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-<!-- Chart.js -->
+<!-- Chart.js (YENİ: Dashboard Grafikleri İçin Eklendi) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -98,7 +99,7 @@
                     <button class="filter-btn link-btn" onclick="openWizard()"><i class="fas fa-robot"></i> İade Asistanı</button>
                     <button class="filter-btn link-btn" onclick="openSales()"><i class="fas fa-headset"></i> TeleSatış</button>
                     <button class="filter-btn link-btn" onclick="openPenaltyGame()"><i class="fas fa-futbol"></i> Oyun</button>
-                    <!-- Kalite Butonu -->
+                    <!-- YENİ: Kalite Dashboard Butonu -->
                     <button class="filter-btn link-btn" onclick="openQualityArea()"><i class="fas fa-chart-pie"></i> Kalite</button>
                 </div>
             </div>
@@ -131,7 +132,7 @@
     </div>
 </div>
 
-<!-- WIZARD MODAL -->
+<!-- WIZARD MODAL (İade Asistanı) -->
 <div id="wizard-modal" class="modal-overlay">
     <div class="modal-content">
         <span class="close-modal" onclick="closeModal('wizard-modal')">&times;</span>
@@ -157,7 +158,7 @@
     </div>
 </div>
 
-<!-- OYUN MODAL (PENALTY) -->
+<!-- OYUN MODAL (PENALTY - ORİJİNAL VERİ KORUNDU) -->
 <div id="penalty-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 650px; background: #1a1a1a; border: 1px solid #333; min-height:600px; display:flex; flex-direction:column;">
         <span class="close-modal" onclick="closeModal('penalty-modal')">&times;</span>
@@ -190,19 +191,19 @@
     </div>
 </div>
 
-<!-- KALİTE DASHBOARD MODALI -->
+<!-- YENİ KALİTE DASHBOARD MODALI -->
 <div id="quality-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 1000px; background: #f8f9fa;">
         <span class="close-modal" onclick="closeModal('quality-modal')">&times;</span>
         
-        <!-- Header -->
+        <!-- Dashboard Header -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom: 20px;">
             <div>
                 <h2 style="margin:0; color:var(--primary);"><i class="fa-solid fa-chart-line"></i> Kalite Yönetim Paneli</h2>
                 <p style="margin:5px 0 0 0; font-size:0.85rem; color:#666;">Performans metrikleri ve değerlendirme takibi</p>
             </div>
             
-            <!-- Admin Kontrolleri -->
+            <!-- Admin Kontrolleri (Varsa) -->
             <div id="admin-quality-controls" style="display:none; gap:10px;">
                 <div style="font-weight:bold; display:flex; align-items:center; gap: 5px;">
                     <select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 200px; padding:5px; height: 35px; margin:0; font-size: 0.8rem;"></select>
@@ -212,9 +213,9 @@
             </div>
         </div>
 
-        <!-- Dashboard Kartları -->
+        <!-- Dashboard KPI Kartları -->
         <div class="dash-grid-container">
-            <!-- Puan Kartı -->
+            <!-- Kart 1: Genel Puan -->
             <div class="dash-card" style="border-left: 4px solid var(--info);">
                 <div class="dash-card-icon" style="background: var(--info); color: var(--info);"><i class="fa-solid fa-star"></i></div>
                 <div class="dash-card-title">Ortalama Kalite Puanı</div>
@@ -224,52 +225,55 @@
                     dönemi
                 </div>
             </div>
-
-            <!-- Adet Kartı -->
-            <div class="dash-card" style="border-left: 4px solid var(--success);">
-                <div class="dash-card-icon" style="background: var(--success); color: var(--success);"><i class="fa-solid fa-headset"></i></div>
-                <div class="dash-card-title">Değerlendirilen Çağrı</div>
-                <div class="dash-card-value" id="dash-total-count">--</div>
-                <div class="dash-card-sub"><span style="color:var(--success);">Aktif</span> performans kaydı</div>
-            </div>
-
-            <!-- Hedef Kartı -->
-            <div class="dash-card" style="border-left: 4px solid var(--warning);">
-                <div class="dash-card-icon" style="background: var(--warning); color: var(--warning);"><i class="fa-solid fa-bullseye"></i></div>
-                <div class="dash-card-title">Hedef Tutma Oranı</div>
-                <div class="dash-card-value" id="dash-target-rate">--%</div>
-                <div class="dash-card-sub">Hedef puan: 90+</div>
-            </div>
-
-            <!-- Ana İçerik -->
+            <!-- Ana İçerik: ÇAĞRI LİSTESİ (SOL) - GRUP SIRALAMASI (SAĞ) -->
             <div class="dash-main-area">
-                <!-- Grafik -->
-                <div class="dash-chart-box">
-                    <canvas id="qualityChart"></canvas>
+                
+                <!-- SOL: ÇAĞRI LİSTESİ (ESKİ CHART YERİ) -->
+                <div class="dash-chart-box" style="overflow: hidden; display:flex; flex-direction:column; padding:0;">
+                    <div class="dash-list-header" style="background:white; border-bottom:1px solid #eee; padding: 15px;">
+                        <span><i class="fas fa-list-ul"></i> Değerlendirme Geçmişi</span>
+                        <span style="font-size:0.8rem; color:#999;">(Detay için kayda tıklayın)</span>
+                    </div>
+                    <div class="dash-list-content" id="evaluations-list-dashboard" style="overflow-y:auto; padding:0;">
+                        <div style="padding:20px; text-align:center; color:#ccc;">Veri bekleniyor...</div>
+                    </div>
                 </div>
 
-                <!-- Liste (Artık Tam Liste) -->
+                <!-- SAĞ: GRUP SIRALAMASI (ESKİ LİSTE YERİ) -->
                 <div class="dash-list-box">
                     <div class="dash-list-header">
-                        <span>Değerlendirme Listesi</span>
-                        <span style="font-size:0.7rem; color:#999;" id="list-subtitle">(Detay için tıklayın)</span>
+                        <span><i class="fas fa-trophy" style="color:gold;"></i> Grup Sıralaması</span>
+                        <span id="ranking-group-name" style="font-size:0.7rem; color:#999;">-</span>
                     </div>
-                    <div class="dash-list-content" id="evaluations-list-dashboard">
-                        <div style="padding:20px; text-align:center; color:#ccc;">Veri bekleniyor...</div>
+                    <div style="overflow-y:auto; flex-grow:1;">
+                        <table class="ranking-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead style="background:#f8f9fa; position:sticky; top:0;">
+                                <tr style="color:#666;">
+                                    <th style="padding:8px;">#</th>
+                                    <th style="padding:8px;">Temsilci</th>
+                                    <th style="padding:8px; text-align:right;">Ort.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="group-ranking-body">
+                                <!-- JS ile dolacak -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Gizli yedek liste (eski yapıdan kalma) -->
+        <!-- Gizli yedek liste (eski yapıdan kalma, gerekirse açılabilir) -->
         <div id="evaluations-list" style="display:none;"></div>
 
     </div>
 </div>
 
 <div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div>
+<!-- DÜZELTME: JS dosyası 'js' klasöründen çağrılıyor -->
 <script src="js/app.js"></script>
 <script>
+    // Header Dropdown Kontrolü
     function toggleUserDropdown() {
         const dropdown = document.getElementById('userDropdown');
         const arrow = document.getElementById('user-menu-arrow');
