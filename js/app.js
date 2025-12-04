@@ -1,9 +1,13 @@
 const BAKIM_MODU = false;
-// Apps Script URL'si
+// Apps Script URL'si (Kendi URL'nizin doğru olduğundan emin olun)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYxTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec";
+
+// --- OYUN DEĞİŞKENLERİ ---
 let jokers = { call: 1, half: 1, double: 1 };
 let doubleChanceUsed = false;
 let firstAnswerIndex = -1;
+
+// --- KATEGORİLER ---
 const VALID_CATEGORIES = ['Teknik', 'İkna', 'Kampanya', 'Bilgi'];
 
 // --- GLOBAL DEĞİŞKENLER ---
@@ -21,7 +25,9 @@ let technicalStepsData = {}; // YENİ: Teknik Asistan Verisi
 
 const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
-// --- KALİTE PUANLAMA LOGİĞİ ---
+// =========================================================
+// 1. BÖLÜM: KALİTE VE PUANLAMA
+// =========================================================
 window.updateRowScore = function(index, max) {
     const slider = document.getElementById(`slider-${index}`);
     const badge = document.getElementById(`badge-${index}`);
@@ -69,9 +75,12 @@ window.recalcTotalScore = function() {
     }
 };
 
-// --- YARDIMCI FONKSİYONLAR ---
+// =========================================================
+// 2. BÖLÜM: YARDIMCI FONKSİYONLAR
+// =========================================================
 function getToken() { return localStorage.getItem("sSportToken"); }
 function getFavs() { return JSON.parse(localStorage.getItem('sSportFavs') || '[]'); }
+
 function toggleFavorite(title) {
     event.stopPropagation();
     let favs = getFavs();
@@ -87,7 +96,9 @@ function toggleFavorite(title) {
         renderCards(activeCards);
     }
 }
+
 function isFav(title) { return getFavs().includes(title); }
+
 function formatDateToDDMMYYYY(dateString) {
     if (!dateString) return 'N/A';
     if (dateString.match(/^\d{2}\.\d{2}\.\d{4}/)) { return dateString; }
@@ -100,6 +111,7 @@ function formatDateToDDMMYYYY(dateString) {
         return `${day}.${month}.${year}`;
     } catch (e) { return dateString; }
 }
+
 function isNew(dateStr) {
     if (!dateStr) return false;
     let date;
@@ -116,6 +128,7 @@ function isNew(dateStr) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays <= 3;
 }
+
 function getCategorySelectHtml(currentCategory, id) {
     let options = VALID_CATEGORIES.map(cat => `<option value="${cat}" ${cat === currentCategory ? 'selected' : ''}>${cat}</option>`).join('');
     if (currentCategory && !VALID_CATEGORIES.includes(currentCategory)) {
@@ -123,17 +136,21 @@ function getCategorySelectHtml(currentCategory, id) {
     }
     return `<select id="${id}" class="swal2-input" style="width:100%; margin-top:5px;">${options}</select>`;
 }
+
 function escapeForJsString(text) {
     if (!text) return "";
     return text.toString().replace(/\\/g, '\\\\').replace(/'/g, '\\\'').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
 }
+
 document.addEventListener('contextmenu', event => event.preventDefault());
 document.onkeydown = function(e) { if(e.keyCode == 123) return false; }
 document.addEventListener('DOMContentLoaded', () => {
     checkSession();
 });
 
-// --- SESSION & LOGIN ---
+// =========================================================
+// 3. BÖLÜM: OTURUM YÖNETİMİ
+// =========================================================
 function checkSession() {
     const savedUser = localStorage.getItem("sSportUser");
     const savedToken = localStorage.getItem("sSportToken");
@@ -150,11 +167,12 @@ function checkSession() {
             document.getElementById("main-app").style.display = "block";
             loadContentData();
             loadWizardData();
-            // Teknik veriyi kullanıcı butona basınca yükleyeceğiz (lazy load)
         }
     }
 }
+
 function enterBas(e) { if (e.key === "Enter") girisYap(); }
+
 function girisYap() {
     const uName = document.getElementById("usernameInput").value.trim();
     const uPass = document.getElementById("passInput").value.trim();
@@ -170,6 +188,7 @@ function girisYap() {
     errorMsg.style.display = "none";
     document.querySelector('.login-btn').disabled = true;
     const hashedPass = CryptoJS.SHA256(uPass).toString();
+    
     fetch(SCRIPT_URL, {
         method: 'POST',
         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -218,6 +237,7 @@ function girisYap() {
         errorMsg.style.display = "block";
     });
 }
+
 function checkAdmin(role) {
     const addCardDropdown = document.getElementById('dropdownAddCard');
     const quickEditDropdown = document.getElementById('dropdownQuickEdit');
@@ -237,6 +257,7 @@ function checkAdmin(role) {
         if(quickEditDropdown) quickEditDropdown.style.display = 'none';
     }
 }
+
 function logout() {
     currentUser = "";
     isAdminMode = false;
@@ -255,12 +276,14 @@ function logout() {
     document.getElementById("usernameInput").value = "";
     document.getElementById("error-msg").style.display = "none";
 }
+
 function startSessionTimer() {
     if (sessionTimeout) clearTimeout(sessionTimeout);
     sessionTimeout = setTimeout(() => {
         Swal.fire({ icon: 'warning', title: 'Oturum Süresi Doldu', text: 'Güvenlik nedeniyle otomatik çıkış yapıldı.', confirmButtonText: 'Tamam' }).then(() => { logout(); });
     }, 3600000);
 }
+
 function openUserMenu() {
     let options = {
         title: `Merhaba, ${currentUser}`,
@@ -275,6 +298,7 @@ function openUserMenu() {
         else if (result.isDenied) logout();
     });
 }
+
 async function changePasswordPopup(isMandatory = false) {
     const { value: formValues } = await Swal.fire({
         title: isMandatory ? 'Yeni Şifre Belirleyin' : 'Şifre Değiştir',
@@ -321,7 +345,9 @@ async function changePasswordPopup(isMandatory = false) {
     }
 }
 
-// --- DATA FETCHING ---
+// =========================================================
+// 4. BÖLÜM: VERİ ÇEKME VE KARTLAR
+// =========================================================
 function loadContentData() {
     document.getElementById('loading').style.display = 'block';
     fetch(SCRIPT_URL, {
@@ -388,6 +414,7 @@ function loadContentData() {
         document.getElementById('loading').innerHTML = 'Bağlantı Hatası! Sunucuya ulaşılamıyor.';
     });
 }
+
 function loadWizardData() {
     return new Promise((resolve, reject) => {
         fetch(SCRIPT_URL, {
@@ -415,7 +442,6 @@ function loadWizardData() {
 // --- YENİ TEKNİK ASİSTAN VERİ ÇEKME ---
 function loadTechnicalData() {
     return new Promise((resolve, reject) => {
-        // Veri zaten varsa tekrar çekme
         if (Object.keys(technicalStepsData).length > 0) {
             resolve();
             return;
@@ -433,7 +459,7 @@ function loadTechnicalData() {
                 resolve();
             } else {
                 technicalStepsData = {};
-                reject(new Error("Teknik veri yüklenemedi."));
+                reject(new Error(data.message || "Teknik veri yüklenemedi."));
             }
         })
         .catch(error => {
@@ -485,6 +511,7 @@ function renderCards(data) {
         container.innerHTML += html;
     });
 }
+
 function highlightText(htmlContent) {
     if (!htmlContent) return "";
     const searchTerm = document.getElementById('searchInput').value.trim();
@@ -496,12 +523,14 @@ function highlightText(htmlContent) {
         return htmlContent;
     }
 }
+
 function filterCategory(btn, cat) {
     currentCategory = cat;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filterContent();
 }
+
 function filterContent() {
     const search = document.getElementById('searchInput').value.toLocaleLowerCase('tr-TR').trim();
     let filtered = database;
@@ -522,6 +551,7 @@ function filterContent() {
     activeCards = filtered;
     renderCards(filtered);
 }
+
 function showCardDetail(title, text) {
     Swal.fire({
         title: title,
@@ -532,10 +562,12 @@ function showCardDetail(title, text) {
         background: '#f8f9fa'
     });
 }
+
 function copyText(t) {
     navigator.clipboard.writeText(t.replace(/\\n/g, '\n')).then(() => 
         Swal.fire({icon:'success', title:'Kopyalandı', toast:true, position:'top-end', showConfirmButton:false, timer:1500}) );
 }
+
 function toggleEditMode() {
     if (!isAdminMode) return;
     isEditingActive = !isEditingActive;
@@ -551,11 +583,11 @@ function toggleEditMode() {
         btn.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
     }
     filterContent();
-    // Diğer modüllerdeki ikonları da güncellemek için
     if(document.getElementById('guide-modal').style.display === 'flex') openGuide();
     if(document.getElementById('sales-modal').style.display === 'flex') openSales();
     if(document.getElementById('news-modal').style.display === 'flex') openNews();
 }
+
 function sendUpdate(o, c, v, t='card') {
     if (!Swal.isVisible()) Swal.fire({ title: 'Kaydediliyor...', didOpen: () => { Swal.showLoading() } });
     fetch(SCRIPT_URL, {
@@ -574,6 +606,7 @@ function sendUpdate(o, c, v, t='card') {
 }
 
 // --- CRUD OPERASYONLARI ---
+// (Bu kısım uzun olduğu için önceki koddan aynen korunmuştur, admin işlemleri için gereklidir)
 async function addNewCardPopup() {
     const catSelectHTML = getCategorySelectHtml('Bilgi', 'swal-new-cat');
     const { value: formValues } = await Swal.fire({
@@ -958,7 +991,9 @@ function toggleSales(index) {
     }
 }
 
-// --- KALİTE FONKSİYONLARI ---
+// =========================================================
+// 5. BÖLÜM: KALİTE YÖNETİMİ
+// =========================================================
 function populateMonthFilter() {
     const selectEl = document.getElementById('month-select-filter');
     if (!selectEl) return;
@@ -986,7 +1021,6 @@ function openQualityArea() {
     document.getElementById('admin-quality-controls').style.display = isAdminMode ? 'block' : 'none';
     populateMonthFilter();
     
-    // DASHBOARD ELEMENTLERİ
     const dashAvg = document.getElementById('dash-avg-score');
     const dashCount = document.getElementById('dash-eval-count');
     const dashTarget = document.getElementById('dash-target-rate');
@@ -999,7 +1033,6 @@ function openQualityArea() {
         const newMonthSelect = monthSelect.cloneNode(true);
         monthSelect.parentNode.replaceChild(newMonthSelect, monthSelect);
         newMonthSelect.addEventListener('change', function() {
-            // Sadece fetch çağır, parametreler oradan okunacak
             fetchEvaluationsForAgent();
         });
     }
@@ -1009,7 +1042,7 @@ function openQualityArea() {
             const agentSelect = document.getElementById('agent-select-admin');
             
             if(groupSelect && agentSelect) {
-                // Grupları Çek
+                // Grupları Çek (Unique)
                 const groups = [...new Set(users.map(u => u.group))].sort();
                 
                 // Grup Seçimini Doldur
@@ -1024,35 +1057,30 @@ function openQualityArea() {
         fetchEvaluationsForAgent(currentUser);
     }
 }
-// YENİ FONKSİYON: Gruba Göre Temsilci Listesini Güncelleme
+
 function updateAgentListBasedOnGroup() {
     const groupSelect = document.getElementById('group-select-admin');
     const agentSelect = document.getElementById('agent-select-admin');
     if(!groupSelect || !agentSelect) return;
     const selectedGroup = groupSelect.value;
     
-    // Mevcut listeyi temizle
     agentSelect.innerHTML = '';
-    
     let filteredUsers = adminUserList;
     
     if (selectedGroup !== 'all') {
         filteredUsers = adminUserList.filter(u => u.group === selectedGroup);
-        // O grubun tamamını seçme seçeneği ekle
         agentSelect.innerHTML = `<option value="all">-- Tüm ${selectedGroup} Ekibi --</option>`;
     } else {
-        // Tüm gruplar seçiliyse, tüm temsilciler seçeneği
         agentSelect.innerHTML = `<option value="all">-- Tüm Temsilciler --</option>`;
     }
     
-    // Kullanıcıları ekle
     filteredUsers.forEach(u => {
         agentSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
     });
     
-    // Listeyi güncelledikten sonra otomatik veri çek
     fetchEvaluationsForAgent(); 
 }
+
 async function fetchEvaluationsForAgent(forcedName) {
     const listEl = document.getElementById('evaluations-list');
     const loader = document.getElementById('quality-loader');
@@ -1062,7 +1090,7 @@ async function fetchEvaluationsForAgent(forcedName) {
     const dashTarget = document.getElementById('dash-target-rate');
     listEl.innerHTML = '';
     loader.style.display = 'block';
-    // Admin Panelindeki Seçimler
+    
     const groupSelect = document.getElementById('group-select-admin');
     const agentSelect = document.getElementById('agent-select-admin');
     
@@ -1072,7 +1100,6 @@ async function fetchEvaluationsForAgent(forcedName) {
         targetAgent = forcedName || (agentSelect ? agentSelect.value : currentUser);
         targetGroup = groupSelect ? groupSelect.value : 'all';
         
-        // "Tüm Temsilciler" seçiliyse ve Grup "Tüm Gruplar" ise uyarı ver (Çok veri)
         if(targetAgent === 'all' && targetGroup === 'all') {
             loader.innerHTML = '<div style="padding:20px; text-align:center; color:#1976d2;"><i class="fas fa-users fa-2x"></i><br><br><b>Tüm Şirket Verisi</b><br>Detaylı analiz için yukarıdaki "Rapor" butonunu kullanın.</div>';
             if(dashAvg) dashAvg.innerText = "-";
@@ -1141,29 +1168,23 @@ async function fetchEvaluationsForAgent(forcedName) {
                     detailHtml += '</table>';
                 } catch (e) { detailHtml = `<p style="white-space:pre-wrap; margin:0; font-size:0.9rem;">${evalItem.details}</p>`; }
                 let editBtn = isAdminMode ? `<i class="fas fa-pen" style="font-size:1rem; color:#fabb00; cursor:pointer; margin-right:5px; padding:5px;" onclick="event.stopPropagation(); editEvaluation('${evalItem.callId}')" title="Kaydı Düzenle"></i>` : '';
-                // Eğer Toplu Gösterim modundaysak, her satırda Ajan adını da gösterelim
                 let agentNameDisplay = (targetAgent === 'all') ? `<span style="font-size:0.8rem; font-weight:bold; color:#555; background:#eee; padding:2px 6px; border-radius:4px; margin-left:10px;">${evalItem.agent}</span>` : '';
                 html += `<div class="evaluation-summary" id="eval-summary-${index}" style="position:relative; border:1px solid #eaedf2; border-left:4px solid ${scoreColor}; padding:15px; margin-bottom:10px; border-radius:8px; background:#fff; cursor:pointer; transition:all 0.2s ease;" onclick="toggleEvaluationDetail(${index})">
                     
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         
-                        <!-- SOL TARAFI (TARİHLER VE ID) -->
                         <div style="display:flex; flex-direction:column; gap:4px;">
-                            <!-- ÜST: ÇAĞRI TARİHİ + (Opsiyonel Ajan Adı) -->
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <i class="fas fa-phone-alt" style="color:#b0b8c1; font-size:0.9rem;"></i>
                                 <span style="font-weight:700; color:#2c3e50; font-size:1.05rem;">${displayCallDate}</span>
                                 ${agentNameDisplay}
                             </div>
-                            
-                            <!-- ALT: LOG TARİHİ VE ID -->
                             <div style="font-size:0.75rem; color:#94a3b8; margin-left:22px;">
                                 <span style="font-weight:500;">Log:</span> ${displayLogDate} 
                                 <span style="margin:0 4px; color:#cbd5e0;">|</span> 
                                 <span style="font-weight:500;">ID:</span> ${evalItem.callId || '-'}
                             </div>
                         </div>
-                        <!-- SAĞ TARAFI (PUAN VE EDİT İKONU) -->
                         <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
                             <div style="display:flex; align-items:center;">
                                 ${editBtn} 
@@ -1191,6 +1212,7 @@ async function fetchEvaluationsForAgent(forcedName) {
         listEl.innerHTML = `<p style="color:red; text-align:center;">Bağlantı hatası.</p>`;
     }
 }
+
 async function exportEvaluations() {
     if (!isAdminMode) {
         Swal.fire('Hata', 'Bu işlem için yönetici yetkisi gereklidir.', 'error');
@@ -1252,6 +1274,7 @@ async function exportEvaluations() {
         Swal.fire('Hata', 'Sunucuya bağlanılamadı.', 'error');
     }
 }
+
 function fetchUserListForAdmin() {
     return new Promise((resolve) => {
         fetch(SCRIPT_URL, {
@@ -1270,6 +1293,7 @@ function fetchUserListForAdmin() {
         }).catch(err => resolve([]));
     });
 }
+
 function fetchCriteria(groupName) {
     return new Promise((resolve) => {
         fetch(SCRIPT_URL, {
@@ -1289,9 +1313,9 @@ function fetchCriteria(groupName) {
         });
     });
 }
+
 function toggleEvaluationDetail(index) {
     const detailEl = document.getElementById(`eval-details-${index}`);
-    const iconEl = document.getElementById(`eval-icon-${index}`);
     const isVisible = detailEl.style.maxHeight !== '0px' && detailEl.style.maxHeight !== '';
     if (isVisible) {
         detailEl.style.maxHeight = '0px';
@@ -1301,16 +1325,16 @@ function toggleEvaluationDetail(index) {
         detailEl.style.marginTop = '10px';
     }
 }
+
 async function logEvaluationPopup() {
     const agentSelect = document.getElementById('agent-select-admin');
     const agentName = agentSelect ? agentSelect.value : "";
     
-    // Güvenlik: İsim seçili mi?
     if (!agentName || agentName === 'all') {
         Swal.fire('Uyarı', 'Lütfen işlem yapmak için listeden bir personel seçiniz.', 'warning');
         return;
     }
-    // 1. ADIM: Grubun Doğru Belirlenmesi
+    
     let agentGroup = 'Genel';
     const foundUser = adminUserList.find(u => u.name.toLowerCase() === agentName.toLowerCase());
     if (foundUser && foundUser.group) {
@@ -1486,6 +1510,7 @@ async function logEvaluationPopup() {
         }).catch(err => { Swal.fire('Hata', 'Sunucu hatası.', 'error'); });
     }
 }
+
 async function editEvaluation(targetCallId) {
     const evalData = allEvaluationsData.find(item => String(item.callId).trim() === String(targetCallId).trim());
     
@@ -1642,8 +1667,9 @@ async function editEvaluation(targetCallId) {
     }
 }
 
-// --- PENALTY GAME FUNCTIONS ---
-let pScore=0, pBalls=10, pCurrentQ=null;
+// =========================================================
+// 6. BÖLÜM: PENALTI OYUNU
+// =========================================================
 function updateJokerButtons() {
     document.getElementById('joker-call').disabled = jokers.call === 0;
     document.getElementById('joker-half').disabled = jokers.half === 0;
@@ -1877,7 +1903,9 @@ function finishPenaltyGame() {
     });
 }
 
-// --- WIZARD FONKSİYONLARI ---
+// =========================================================
+// 7. BÖLÜM: SİHİRBAZLAR (WIZARD & TECHNICAL ASSISTANT)
+// =========================================================
 function openWizard(){
     document.getElementById('wizard-modal').style.display='flex';
     if (Object.keys(wizardStepsData).length === 0) {
@@ -1922,7 +1950,7 @@ function renderStep(k){
     b.innerHTML = h;
 }
 
-// --- TEKNİK ASİSTAN FONKSİYONLARI (YENİ) ---
+// --- TEKNİK ASİSTAN FONKSİYONLARI ---
 function openTechnicalWizard() {
     document.getElementById('tech-wizard-modal').style.display = 'flex';
     
