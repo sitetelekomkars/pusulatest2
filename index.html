@@ -193,35 +193,36 @@
 <h2 id="quality-modal-title" style="color:var(--primary);">  📊   Kalite Yönetim Paneli</h2>
 <span class="close-modal" onclick="closeModal('quality-modal')">&times;</span>
 </div>
+
+<div id="admin-quality-controls" style="display:none; margin: 0 25px;">
+    <div class="quality-controls-top" style="align-items:flex-start;">
+        <div style="display:flex; gap:10px; flex-shrink:0;">
+            <button class="btn btn-copy" style="background:var(--accent); border:none; color:white; padding:8px 15px; border-radius:4px; cursor:pointer;" onclick="logEvaluationPopup()"><i class="fas fa-plus"></i> Değerlendirme Ekle</button>
+            <button class="btn btn-copy" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;" onclick="exportEvaluations()"><i class="fas fa-file-csv"></i> Kırılım Raporu</button>
+        </div>
+        <div class="quality-filter-group" style="margin-left: auto;">
+            <div style="display:flex; flex-direction:column;">
+                <label style="font-size:0.7rem; color:#999; margin-bottom:2px;">Ekip / Grup</label>
+                <select id="group-select-admin" class="swal2-input" onchange="updateAgentListBasedOnGroup()" style="width: 150px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;"></select>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+                <label style="font-size:0.7rem; color:#999; margin-bottom:2px;">Temsilci</label>
+                <select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 180px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;"></select>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+                <label style="font-size:0.75rem; color:#999; margin-bottom:2px;">Dönem Seçimi:</label>
+                <select id="month-select-filter" class="minimal-select swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 120px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;">
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="q-tabs">
 <button id="tab-overview-btn" class="q-tab-btn active" onclick="switchQualityTab('overview')">Performans Özeti</button>
 <button id="tab-training-btn" class="q-tab-btn" onclick="switchQualityTab('training')">Eğitim ve Gelişim</button>
 </div>
-<div id="quality-content">
-<div id="admin-quality-controls" style="display:none; margin-top:15px;">
-<div class="quality-controls-top">
-<div style="display:flex; gap:10px;">
-<button class="btn btn-copy" style="background:var(--accent); border:none; color:white; padding:8px 15px; border-radius:4px; cursor:pointer;" onclick="logEvaluationPopup()"><i class="fas fa-plus"></i> Değerlendirme Ekle</button>
-<button class="btn btn-copy" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;" onclick="exportEvaluations()"><i class="fas fa-file-csv"></i> Kırılım Raporu</button>
-</div>
-<div class="quality-filter-group">
-<div style="display:flex; flex-direction:column;">
-<label style="font-size:0.7rem; color:#999; margin-bottom:2px;">Ekip / Grup</label>
-<select id="group-select-admin" class="swal2-input" onchange="updateAgentListBasedOnGroup()" style="width: 150px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;"></select>
-</div>
-<div style="display:flex; flex-direction:column;">
-<label style="font-size:0.7rem; color:#999; margin-bottom:2px;">Temsilci</label>
-<select id="agent-select-admin" class="swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 180px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;"></select>
-</div>
-<div style="display:flex; flex-direction:column;">
-<label style="font-size:0.75rem; color:#999; margin-bottom:2px;">Dönem Seçimi:</label>
-<select id="month-select-filter" class="minimal-select swal2-input" onchange="fetchEvaluationsForAgent()" style="width: 120px; padding:5px; height:35px; margin:0; border-color:#ccc; font-size:0.85rem;">
-</select>
-</div>
-</div>
-</div>
-</div>
 
+<div id="quality-content">
 <div id="quality-tab-overview" class="q-tab-content">
 <div class="q-stats-grid">
 <div class="q-stat-card card-blue">
@@ -267,48 +268,27 @@
 </div>
 
 <div id="quality-tab-training" class="q-tab-content hidden">
-<h3 class="list-section-title">Eğitim ve Gelişim Kayıtları</h3>
+    <div id="training-admin-controls" style="display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:5px; gap:10px;">
+        <button class="btn btn-copy" style="background:#0288d1; color:white; padding:8px 15px; border-radius:4px; cursor:pointer;" onclick="planNewTrainingPopup()"><i class="fas fa-chalkboard-teacher"></i> Eğitim Planla/Ata</button>
+    </div>
 
-<div class="q-section-card">
-<h4>Planlanan/Tamamlanan Kayıtlar (Simülasyon Verisi)</h4>
-<div id="training-records-list" style="max-height: 250px; overflow-y: auto;">
-<div class="training-item">
-<div class="training-date">01.12.2025</div>
-<div class="training-title">**Özel Geri Bildirim Görüşmesi:** Yeni Kural İhlali</div>
-<div class="training-status status-red">Görüşme Kayıt</div>
-</div>
-<div class="training-item">
-<div class="training-date">14.11.2025</div>
-<div class="training-title">Yeni Kampanya İkna Eğitimi</div>
-<div class="training-status status-success">Tamamlandı</div>
-</div>
-<div class="training-item">
-<div class="training-date">28.10.2025</div>
-<div class="training-title">Hatalı Bilgi Düzeltme Eğitimi</div>
-<div class="training-status status-success">Tamamlandı</div>
-</div>
-<div class="training-item">
-<div class="training-date">05.09.2025</div>
-<div class="training-title">Teknik Destek Süreç Geliştirme Eğitimi</div>
-<div class="training-status status-success">Tamamlandı</div>
-</div>
-</div>
-</div>
+    <div class="q-section-card">
+        <h4>Atanmış Eğitimler / Görüşme Kayıtları</h4>
+        <div id="training-records-list">
+        </div>
+    </div>
 
-<div class="q-section-card" style="margin-top:15px;">
-<h4><i class="fas fa-chart-line"></i> Eğitim Sonrası Performans Takibi (Simülasyon Verisi)</h4>
-<p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">Eğitim/Görüşme sonrası yapılan kalite değerlendirmelerinde elde edilen puanlar.</p>
-<table class="simple-table">
-<thead>
-<tr><th>Tarih</th><th>Eğitim Konusu</th><th>Puan</th><th>Değerlendiren</th></tr>
-</thead>
-<tbody>
-<tr><td>05.12.2025</td><td>Yeni Kural İhlali (Görüşme Sonrası)</td><td>80 / 100</td><td>Ayşe T.</td></tr>
-<tr><td>25.11.2025</td><td>Yeni Kampanya İkna (Eğitim Sonrası)</td><td>95 / 100</td><td>Mehmet K.</td></tr>
-<tr><td>10.11.2025</td><td>Hatalı Bilgi Düzeltme (Eğitim Sonrası)</td><td>88 / 100</td><td>Ayşe T.</td></tr>
-</tbody>
-</table>
-</div>
+    <div class="q-section-card" style="margin-top:15px;">
+        <h4><i class="fas fa-chart-line"></i> Eğitim Sonrası Performans Takibi</h4>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">Eğitim/Görüşme sonrası yapılan kalite değerlendirmelerinde elde edilen puanlar.</p>
+        <table class="simple-table">
+        <thead>
+        <tr><th>Tarih</th><th>Eğitim Konusu</th><th>Puan</th><th>Değerlendiren</th></tr>
+        </thead>
+        <tbody id="training-performance-body">
+        </tbody>
+        </table>
+    </div>
 </div>
 </div>
 </div>
@@ -349,6 +329,28 @@ document.getElementById('quality-tab-' + tabId).classList.remove('hidden');
 document.querySelectorAll('.q-tab-btn').forEach(b => b.classList.remove('active'));
 // Tıklanan butona 'active' sınıfını ekle
 document.getElementById('tab-' + tabId + '-btn').classList.add('active');
+
+// Filtrelerden seçilen temsilciyi al
+const agentSelect = document.getElementById('agent-select-admin');
+const targetAgent = agentSelect ? agentSelect.value : currentUser;
+const groupSelect = document.getElementById('group-select-admin');
+const targetGroup = groupSelect ? groupSelect.value : 'all';
+const selectedMonth = document.getElementById('month-select-filter').value;
+
+// Eğer Eğitim sekmesine geçiliyorsa, Yönetici butonlarını ve veriyi güncelle
+const trainingControls = document.getElementById('training-admin-controls');
+if (tabId === 'training') {
+    // Yöneticiyse ve tek bir temsilci seçiliyse butonu göster
+    if (isAdminMode && targetAgent !== 'all') {
+        trainingControls.style.display = 'flex';
+    } else {
+        trainingControls.style.display = 'none';
+    }
+    renderTrainingTab(targetAgent, targetGroup, selectedMonth);
+} else {
+    // Performans Özeti'nde gizle
+    trainingControls.style.display = 'none';
+}
 }
 </script>
 </body>
