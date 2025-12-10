@@ -3,12 +3,12 @@
     --secondary: #fabb00; 
     --bg: #f4f6f8; 
     --card-bg: #ffffff; 
-    --accent: #d32f2f; /* Kırmızı (Kritik Kırılım) */
+    --accent: #d32f2f; /* Kırmızı (Kritik Kırılım / Yeni Feedback) */
     --success: #2e7d32; 
     --info: #0288d1; 
-    --warning: #ed6c02; /* Turuncu (Geri Bildirim) */
+    --warning: #ed6c02; /* Turuncu (Bekleyen Eğitim) */
     --sales: #10b981; 
-    --quiz: #8e24aa; /* Mor (Eğitim) */
+    --quiz: #8e24aa; /* Mor (Eğitim Tamamla butonu) */
     --text-dark: #2c3e50;
     --text-light: #95a5a6;
 }
