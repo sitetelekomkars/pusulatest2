@@ -21,7 +21,7 @@ const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Te
 
 // --- KALİTE PUANLAMA LOGİĞİ ---
 
-// ESKİ window.updateRowScore fonksiyonu tamamen kaldırılmıştır.
+// Eski slider puanlama fonksiyonu (updateRowScore) tamamen kaldırılmıştır.
 
 window.recalcTotalScore = function() {
     let currentTotal = 0;
