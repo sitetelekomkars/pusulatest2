@@ -553,11 +553,6 @@ list-style-type: none;
 padding: 0;
 counter-reset: step-counter;
 }
-.tech-steps-list li {
-position: relative;
-padding-left: 45px;
-margin-bottom: 15px;
-}
 .tech-steps-list li::before {
 content: counter(step-counter);
 counter-increment: step-counter;
