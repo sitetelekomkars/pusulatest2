@@ -428,7 +428,18 @@ function renderCards(data) {
         const editIcon = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" onclick="editContent(${index})" style="display:block;"></i>` : '';
         const newBadge = isNew(item.date) ? '<span class="new-badge">YENİ</span>' : '';
         const favClass = isFav(item.title) ? 'fas fa-star active' : 'far fa-star';
-        let html = `<div class="card ${item.category}">${newBadge}<div class="icon-wrapper">${editIcon}<i class="${favClass} fav-icon" onclick="toggleFavorite('${escapeForJsString(item.title)}')"></i></div><div class="card-header"><h3 class="card-title">${highlightText(item.title)}</h3><span class="badge">${item.category}</span></div><div class="card-content" onclick="showCardDetail('${escapeForJsString(item.title)}', '${escapeForJsString(item.text)}')"><div class="card-text-truncate">${highlightText(item.text)}</div></div><div class="script-box">${highlightText(item.script)}</div><div class="card-actions"><button class="btn btn-copy" onclick="copyText('${escapeForJsString(item.script)}')">Kopyala</button></div></div>`;
+        let rawText = item.text || "";
+        let formattedText = rawText.replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<b>$1</b>');
+        
+        let html = `<div class="card ${item.category}">${newBadge}
+            <div class="icon-wrapper">${editIcon}<i class="${favClass} fav-icon" onclick="toggleFavorite('${escapeForJsString(item.title)}')"></i></div>
+            <div class="card-header"><h3 class="card-title">${highlightText(item.title)}</h3><span class="badge">${item.category}</span></div>
+            <div class="card-content" onclick="showCardDetail('${escapeForJsString(item.title)}', '${escapeForJsString(item.text)}')"><div class="card-text-truncate">${highlightText(formattedText)}</div><div style="font-size:0.8rem;color:#999;text-align:right;">(Tamamını oku)</div></div>
+            <div class="script-box">${highlightText(item.script)}</div>
+            <div class="card-actions"><button class="btn btn-copy" onclick="copyText('${escapeForJsString(item.script)}')"><i class="fas fa-copy"></i> Kopyala</button>
+            ${item.code ? `<button class="btn btn-copy" style="background:var(--secondary);color:#333;" onclick="copyText('${escapeForJsString(item.code)}')">Kod</button>`:''}
+            ${item.link ? `<a href="${item.link}" target="_blank" class="btn btn-link"><i class="fas fa-external-link-alt"></i> Link</a>`:''}</div>
+        </div>`;
         container.innerHTML += html;
     });
 }
@@ -454,8 +465,38 @@ function filterContent() {
     activeCards = filtered;
     renderCards(filtered);
 }
-function showCardDetail(title, text) { Swal.fire({ title: title, html: `<div style="text-align:left;font-size:1rem;line-height:1.6;">${text.replace(/\n/g,'<br>')}</div>`, width: '600px', showCloseButton: true, showConfirmButton: false, background: '#f8f9fa' }); }
+function showCardDetail(title, text) { Swal.fire({ title: title, html: `<div style="text-align:left;font-size:1rem;line-height:1.6;">${text.replace(/\\n/g,'<br>')}</div>`, width: '600px', showCloseButton: true, showConfirmButton: false, background: '#f8f9fa' }); }
 
+function toggleEditMode() {
+    if (!isAdminMode) return;
+    isEditingActive = !isEditingActive;
+    document.body.classList.toggle('editing', isEditingActive);
+    const btn = document.getElementById('dropdownQuickEdit');
+    if(isEditingActive) {
+        btn.classList.add('active'); btn.innerHTML = '<i class="fas fa-times" style="color:var(--accent);"></i> Düzenlemeyi Kapat';
+        Swal.fire({ icon: 'success', title: 'Düzenleme Modu AÇIK', timer: 1500, showConfirmButton: false });
+    } else {
+        btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
+    }
+    filterContent();
+    if(document.getElementById('guide-modal').style.display === 'flex') openGuide();
+    if(document.getElementById('sales-modal').style.display === 'flex') openSales();
+    if(document.getElementById('news-modal').style.display === 'flex') openNews();
+}
+function sendUpdate(o, c, v, t='card') {
+    if (!Swal.isVisible()) Swal.fire({ title: 'Kaydediliyor...', didOpen: () => { Swal.showLoading() } });
+    fetch(SCRIPT_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: "updateContent", title: o, column: c, value: v, type: t, originalText: o, username: currentUser, token: getToken() })
+    }).then(r => r.json()).then(data => {
+        if (data.result === "success") {
+            Swal.fire({icon: 'success', title: 'Başarılı', timer: 1500, showConfirmButton: false});
+            setTimeout(loadContentData, 1600);
+        } else { Swal.fire('Hata', 'Kaydedilemedi.', 'error'); }
+    }).catch(err => Swal.fire('Hata', 'Sunucu hatası.', 'error'));
+}
+
+// --- CRUD OPERASYONLARI (KART EKLEME/DÜZENLEME) ---
 async function addNewCardPopup() {
     const catSelectHTML = getCategorySelectHtml('Bilgi', 'swal-new-cat');
     const { value: formValues } = await Swal.fire({
@@ -774,6 +815,7 @@ function updateAgentListBasedOnGroup() {
     agentSelect.innerHTML = '';
     
     let filteredUsers = adminUserList;
+    
     if (selectedGroup !== 'all') {
         filteredUsers = adminUserList.filter(u => u.group === selectedGroup);
         // O grubun tamamını seçme seçeneği ekle
@@ -815,7 +857,7 @@ async function fetchEvaluationsForAgent(forcedName) {
         targetAgent = forcedName || (agentSelect ? agentSelect.value : currentUser);
         targetGroup = groupSelect ? groupSelect.value : 'all';
         
-        // "Tüm Temsilciler" seçiliyse ve Grup "Tüm Gruplar" ise uyarı ver (Çok veri)
+        // "Tüm Temsilciler" seçiliyse ve Grup "Tüm Gruplar" ise uyarı ver
         if(targetAgent === 'all' && targetGroup === 'all') {
             loader.innerHTML = '<div style="padding:20px; text-align:center; color:#1976d2;"><i class="fas fa-users fa-2x"></i><br><br><b>Tüm Şirket Verisi</b><br>Detaylı analiz için yukarıdaki "Rapor" butonunu kullanın.</div>';
             if(dashAvg) dashAvg.innerText = "-";
@@ -1051,18 +1093,12 @@ async function logEvaluationPopup() {
     }
     
     // Chat personeli için 'Chat' grubunu kullan, Telesatış için 'Telesatış'
-    if (agentGroup.includes('Chat')) {
-        const { value: type } = await Swal.fire({ 
-            title: 'Form Tipi', 
-            input: 'radio', 
-            inputOptions: {'Chat-Normal':'Normal','Chat-Teknik':'Teknik'}, 
-            inputValidator: (v) => !v && 'Seçim yapmalısınız.' 
-        });
-        if(type) agentGroup = type; else return;
-    }
-    const isChat = agentGroup.includes('Chat');
-    const isTelesatis = agentGroup.includes('Telesatış');
-
+    const isChat = agentGroup.indexOf('Chat') > -1;
+    const isTelesatis = agentGroup.indexOf('Telesatış') > -1;
+    
+    if (isChat) agentGroup = 'Chat';
+    // Telesatış zaten "Telesatış" olarak kalmalı
+    
     Swal.fire({ title: 'Değerlendirme Formu Hazırlanıyor...', didOpen: () => Swal.showLoading() });
     
     let criteriaList = [];
@@ -1100,8 +1136,8 @@ async function logEvaluationPopup() {
                         <div class="criteria-controls">
                             <div class="eval-button-group">
                                 <button class="eval-button eval-good active" data-score="${pts}" onclick="setButtonScore(${i}, ${pts}, ${pts})">İyi (${pts})</button>
-                                ${parseInt(c.mediumScore) > 0 ? `<button class="eval-button eval-medium" data-score="${c.mediumScore}" onclick="setButtonScore(${i}, ${c.mediumScore}, ${pts})">Orta (${c.mediumScore})</button>` : ''}
-                                ${parseInt(c.badScore) > 0 ? `<button class="eval-button eval-bad" data-score="${c.badScore}" onclick="setButtonScore(${i}, ${c.badScore}, ${pts})">Kötü (${c.badScore})</button>` : ''}
+                                ${mPts > 0 ? `<button class="eval-button eval-medium" data-score="${mPts}" onclick="setButtonScore(${i}, ${mPts}, ${pts})">Orta (${mPts})</button>` : ''}
+                                ${bPts > 0 ? `<button class="eval-button eval-bad" data-score="${bPts}" onclick="setButtonScore(${i}, ${bPts}, ${pts})">Kötü (${bPts})</button>` : ''}
                             </div>
                             <span class="score-badge" id="badge-${i}" style="margin-top: 8px; display:block; background:#2e7d32;">${initialScore}</span>
                         </div>
@@ -1855,4 +1891,150 @@ function twResetWizard() {
     twState.currentStep = 'start';
     twState.history = [];
     twRenderStep();
+}
+// --- MANUEL FEEDBACK (HIZLI LOG) ---
+function saveManualFeedback() {
+    const agentSelect = document.getElementById('agent-select-admin');
+    const title = document.getElementById('mf-title').value;
+    const date = document.getElementById('mf-date').value;
+    const desc = document.getElementById('mf-desc').value;
+    const impact = document.getElementById('mf-impact').value;
+    const agentName = agentSelect ? agentSelect.value : currentUser; // Admin değilse kendi
+    
+    if(!isAdminMode) { Swal.fire('Hata','Yetkiniz yok.','error'); return; }
+    if(!agentName || agentName === 'all') { Swal.fire('Hata','Lütfen bir temsilci seçin.','warning'); return; }
+    if(!title || !desc) { Swal.fire('Eksik','Konu ve detay zorunludur.','warning'); return; }
+    
+    Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading() });
+    
+    let scoreVal = impact === 'N/A' ? 'Bilgi' : parseInt(impact);
+    
+    // Grup bilgisini bul
+    let agentGroup = 'Genel';
+    const foundUser = adminUserList.find(u => u.name === agentName);
+    if(foundUser) agentGroup = foundUser.group;
+
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ 
+            action: "logEvaluation", 
+            username: currentUser, 
+            token: getToken(),
+            agentName: agentName,
+            agentGroup: agentGroup,
+            callId: "MANUEL-" + Math.floor(Math.random()*100000), // Rastgele ID
+            callDate: date,
+            score: scoreVal,
+            details: JSON.stringify([{ q: title, note: desc, score: scoreVal }]), // Detay formatına uydurma
+            feedback: desc,
+            feedbackType: "Manuel Log"
+        })
+    })
+    .then(r => r.json()).then(d => {
+        if(d.result === "success") {
+            Swal.fire('Başarılı','Feedback kaydedildi.','success');
+            document.getElementById('mf-desc').value = '';
+            document.getElementById('mf-title').value = '';
+            fetchEvaluationsForAgent(); // Listeyi güncelle
+        } else {
+            Swal.fire('Hata', d.message, 'error');
+        }
+    });
+}
+// --- EĞİTİM MODÜLÜ ---
+function loadEducationData() {
+    const listEl = document.getElementById('education-list');
+    const loader = document.getElementById('education-loader');
+    const agentSelect = document.getElementById('agent-select-admin');
+    const targetAgent = isAdminMode ? (agentSelect ? agentSelect.value : 'all') : currentUser;
+    
+    // Admin panel görünürlüğü
+    document.getElementById('admin-edu-panel').style.display = isAdminMode ? 'block' : 'none';
+    
+    listEl.innerHTML = '';
+    loader.style.display = 'block';
+    
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "getEducation", username: currentUser, token: getToken(), targetAgent: targetAgent })
+    })
+    .then(r => r.json()).then(data => {
+        loader.style.display = 'none';
+        if(data.result === "success") {
+            if(data.data.length === 0) { listEl.innerHTML = '<p style="color:#999;">Atanmış eğitim yok.</p>'; return; }
+            
+            data.data.forEach(edu => {
+                let isDone = edu.status === 'Tamamlandı';
+                let btnHtml = isDone 
+                    ? `<span style="color:green; font-weight:bold; float:right;"><i class="fas fa-check"></i> ${edu.completedDate}</span>` 
+                    : `<button class="edu-btn" onclick="completeEducation('${edu.id}')">Tamamla</button>`;
+                
+                let linkHtml = edu.link ? `<a href="${edu.link}" target="_blank" style="color:#0288d1; font-size:0.85rem; display:block; margin-bottom:10px;"><i class="fas fa-link"></i> Eğitime Git</a>` : '';
+                
+                listEl.innerHTML += `
+                <div class="edu-card ${isDone ? 'done' : ''}">
+                    <span class="edu-title">${edu.title}</span>
+                    <span style="font-size:0.7rem; color:#aaa;">Atayan: ${edu.assigner} | ${edu.date}</span>
+                    <p class="edu-desc">${edu.desc}</p>
+                    ${linkHtml}
+                    ${btnHtml}
+                </div>`;
+            });
+        }
+    });
+}
+function assignEducation() {
+    const title = document.getElementById('edu-assign-title').value;
+    const link = document.getElementById('edu-assign-link').value;
+    const desc = document.getElementById('edu-assign-desc').value;
+    const agentSelect = document.getElementById('agent-select-admin');
+    
+    if(!agentSelect || agentSelect.value === 'all') { Swal.fire('Uyarı','Lütfen belirli bir temsilci seçin.','warning'); return; }
+    if(!title) { Swal.fire('Uyarı','Başlık zorunludur.','warning'); return; }
+    
+    Swal.fire({ title: 'Atanıyor...', didOpen: () => Swal.showLoading() });
+    
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ 
+            action: "assignEducation", 
+            username: currentUser, 
+            token: getToken(),
+            targetAgent: agentSelect.value,
+            title: title,
+            desc: desc,
+            link: link
+        })
+    }).then(r => r.json()).then(d => {
+        if(d.result === "success") {
+            Swal.fire('Başarılı','Eğitim atandı.','success');
+            document.getElementById('edu-assign-title').value = '';
+            document.getElementById('edu-assign-desc').value = '';
+            loadEducationData();
+        }
+    });
+}
+function completeEducation(eduId) {
+    Swal.fire({
+        title: 'Eğitimi tamamladın mı?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Evet, Tamamladım'
+    }).then((res) => {
+        if(res.isConfirmed) {
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "completeEducation", eduId: eduId })
+            }).then(r => r.json()).then(d => {
+                if(d.result === "success") {
+                    Swal.fire('Süper!', 'Eğitim tamamlandı olarak işaretlendi.', 'success');
+                    loadEducationData();
+                }
+            });
+        }
+    });
 }
