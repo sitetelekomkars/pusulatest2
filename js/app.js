@@ -497,7 +497,7 @@ function loadTechWizardData() {
 }
 
 // ==========================================================
-// --- 4. RENDER & FİLTRELEME (ANA KARTLAR - ÖZELLİKLER KORUNDU) ---
+// --- 4. RENDER & FİLTRELEME (ANA KARTLAR) ---
 // ==========================================================
 function renderCards(data) {
     activeCards = data;
@@ -518,7 +518,6 @@ function renderCards(data) {
             : '';
         
         let rawText = item.text || "";
-        // Metin içindeki yıldızları bold yapma ve satır başlarını ayarlama
         let formattedText = rawText.replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<b>$1</b>');
         
         let html = `<div class="card ${item.category}">${newBadge}
