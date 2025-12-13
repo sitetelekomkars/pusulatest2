@@ -33,7 +33,7 @@ window.setButtonScore = function(index, score, max) {
     
     buttons.forEach(b => b.classList.remove('active'));
     
-    const activeBtn = row.querySelector(`.eval-button[data-score="${score}"]`);
+    const activeBtn = row.querySelector('.eval-button[data-score="' + score + '"]');
     if (activeBtn) activeBtn.classList.add('active');
     
     badge.innerText = score;
@@ -261,7 +261,7 @@ function girisYap() {
             const savedRole = data.role;
             if (data.forceChange === true) {
                 Swal.fire({
-                    icon: 'warning', title: '    ⚠️     Güvenlik Uyarısı',
+                    icon: 'warning', title: '⚠️ Güvenlik Uyarısı',
                     text: 'İlk girişiniz. Lütfen şifrenizi değiştirin.',
                     allowOutsideClick: false, allowEscapeKey: false, confirmButtonText: 'Şifremi Değiştir'
                 }).then(() => { changePasswordPopup(true); });
@@ -556,11 +556,11 @@ async function addNewCardPopup() {
         <div style="margin-bottom:15px; text-align:left;">
             <label style="font-weight:bold; font-size:0.9rem;">Ne Ekleyeceksin?</label>
             <select id="swal-type-select" class="swal2-input" style="width:100%; margin-top:5px; height:35px; font-size:0.9rem;" onchange="toggleAddFields()">
-                <option value="card">     📌      Bilgi Kartı</option>
-                <option value="news">     📢      Duyuru</option>
-                <option value="sales">     📞      Telesatış Scripti</option>
-                <option value="sport">     🏆      Spor İçeriği</option>
-                <option value="quiz">     ❓      Quiz Sorusu</option>
+                <option value="card">📌 Bilgi Kartı</option>
+                <option value="news">📢 Duyuru</option>
+                <option value="sales">📞 Telesatış Scripti</option>
+                <option value="sport">🏆 Spor İçeriği</option>
+                <option value="quiz">❓ Quiz Sorusu</option>
             </select>
         </div>
         <div id="preview-card" class="card Bilgi" style="text-align:left; box-shadow:none; border:1px solid #e0e0e0; margin-top:10px;">
@@ -832,7 +832,7 @@ function openGuide() {
     const grid = document.getElementById('guide-grid');
     grid.innerHTML = '';
     sportsData.forEach((s, index) => {
-        let pronHtml = s.pronunciation ? `<div class="pronunciation-badge">    🗣️     ${s.pronunciation}</div>` : '';
+        let pronHtml = s.pronunciation ? `<div class="pronunciation-badge">🗣️ ${s.pronunciation}</div>` : '';
         let editBtn = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" style="top:5px; right:5px; z-index:50;" onclick="event.stopPropagation(); editSport('${escapeForJsString(s.title)}')"></i>` : '';
         grid.innerHTML += `<div class="guide-item" onclick="showSportDetail(${index})">${editBtn}<i class="fas ${s.icon} guide-icon"></i><span class="guide-title">${s.title}</span>${pronHtml}<div class="guide-desc">${s.desc}</div><div class="guide-tip"><i class="fas fa-lightbulb"></i> ${s.tip}</div><div style="font-size:0.8rem; color:#999; margin-top:5px;">(Detay için tıkla)</div></div>`;
     });
@@ -840,7 +840,7 @@ function openGuide() {
 function showSportDetail(index) {
     const sport = sportsData[index];
     const detailText = sport.detail ? sport.detail.replace(/\n/g,'<br>') : "Bu içerik için henüz detay eklenmemiş.";
-    const pronDetail = sport.pronunciation ? `<div style="color:#e65100; font-weight:bold; margin-bottom:15px;">    🗣️     Okunuşu: ${sport.pronunciation}</div>` : '';
+    const pronDetail = sport.pronunciation ? `<div style="color:#e65100; font-weight:bold; margin-bottom:15px;">🗣️ Okunuşu: ${sport.pronunciation}</div>` : '';
     Swal.fire({
         title: `<i class="fas ${sport.icon}" style="color:#0e1b42;"></i> ${sport.title}`,
         html: `${pronDetail}<div style="text-align:left; font-size:1rem; line-height:1.6;">${detailText}</div>`,
@@ -888,14 +888,14 @@ function useJoker(type) {
             let incorrectOpts = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns);
             guess = incorrectOpts[Math.floor(Math.random() * incorrectOpts.length)] || correctAns;
         }
-        Swal.fire({ icon: 'info', title: '    📞     Telefon Jokeri', html: `${expert} soruyu cevaplıyor...<br><br>"Benim tahminim kesinlikle **${String.fromCharCode(65 + guess)}** şıkkı. Bundan ${Math.random() < 0.8 ? "çok eminim" : "emin değilim"}."`, confirmButtonText: 'Kapat' });
+        Swal.fire({ icon: 'info', title: '📞 Telefon Jokeri', html: `${expert} soruyu cevaplıyor...<br><br>"Benim tahminim kesinlikle **${String.fromCharCode(65 + guess)}** şıkkı. Bundan ${Math.random() < 0.8 ? "çok eminim" : "emin değilim"}."`, confirmButtonText: 'Kapat' });
     } else if (type === 'half') {
         let incorrectOpts = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns).sort(() => Math.random() - 0.5).slice(0, 2);
         incorrectOpts.forEach(idx => { btns[idx].disabled = true; btns[idx].style.textDecoration = 'line-through'; btns[idx].style.opacity = '0.4'; });
-        Swal.fire({ icon: 'success', title: '    ✂️     Yarı Yarıya', text: 'İki yanlış şık elendi!', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+        Swal.fire({ icon: 'success', title: '✂️ Yarı Yarıya', text: 'İki yanlış şık elendi!', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
     } else if (type === 'double') {
         doubleChanceUsed = true;
-        Swal.fire({ icon: 'warning', title: '2️    ⃣        Ç   ift Cevap', text: 'Bir kez yanl   ış    cevap hakk   ı   n   ı   z var.', toast: true, position: 'top', showConfirmButton: false, timer: 2500 });
+        Swal.fire({ icon: 'warning', title: '2️⃣ Çift Cevap', text: 'Bir kez yanlış cevap hakkınız var.', toast: true, position: 'top', showConfirmButton: false, timer: 2500 });
     }
 }
 function openPenaltyGame() { document.getElementById('penalty-modal').style.display = 'flex'; showLobby(); }
@@ -913,7 +913,7 @@ function fetchLeaderboard() {
             if(data.leaderboard.length === 0) { html = '<tr><td colspan="4" style="text-align:center;">Henüz maç yapılmadı.</td></tr>'; } 
             else {
                 data.leaderboard.forEach((u, i) => {
-                    let medal = i===0 ? '    🥇    ' : (i===1 ? '    🥈    ' : (i===2 ? '    🥉    ' : `<span class="rank-badge">${i+1}</span>`));
+                    let medal = i===0 ? '🥇' : (i===1 ? '🥈' : (i===2 ? '🥉' : `<span class="rank-badge">${i+1}</span>`));
                     let bgStyle = (u.username === currentUser) ? 'background:rgba(250, 187, 0, 0.1);' : '';
                     html += `<tr style="${bgStyle}"><td>${medal}</td><td>${u.username}</td><td>${u.games}</td><td>${u.average}</td></tr>`;
                 });
@@ -986,7 +986,7 @@ function resetField() {
     document.querySelectorAll('.penalty-btn').forEach(b => { b.classList.remove('wrong-first-try'); b.style.textDecoration = ''; b.style.opacity = ''; b.style.background = '#fabb00'; b.style.color = '#0e1b42'; b.style.borderColor = '#f0b500'; b.disabled = false; });
 }
 function finishPenaltyGame() {
-    let title = pScore >= 8 ? "EFSANE!     🏆    " : (pScore >= 5 ? "İyi Maçtı!     👏    " : "Antrenman Lazım     🤕    ");
+    let title = pScore >= 8 ? "EFSANE! 🏆" : (pScore >= 5 ? "İyi Maçtı! 👏" : "Antrenman Lazım 🤕");
     document.getElementById('p-question-text').innerHTML = `<span style="font-size:1.5rem; color:#fabb00;">MAÇ BİTTİ!</span><br>${title}<br>Toplam Skor: ${pScore}/10`;
     document.getElementById('p-options').style.display = 'none'; document.getElementById('p-restart-btn').style.display = 'block';
     fetch(SCRIPT_URL, { method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "logQuiz", username: currentUser, token: getToken(), score: pScore * 10, total: 100 }) });
@@ -1006,7 +1006,7 @@ function renderStep(k){
     const b = document.getElementById('wizard-body');
     let h = `<h2 style="color:var(--primary);">${s.title || ''}</h2>`;
     if(s.result) {
-        let i = s.result === 'red' ? '    🛑    ' : (s.result === 'green' ? '    ✅    ' : '    ⚠️    ');
+        let i = s.result === 'red' ? '🛑' : (s.result === 'green' ? '✅' : '⚠️');
         let c = s.result === 'red' ? 'res-red' : (s.result === 'green' ? 'res-green' : 'res-yellow');
         h += `<div class="result-box ${c}"><div style="font-size:3rem;margin-bottom:10px;">${i}</div><h3>${s.title}</h3><p>${s.text}</p>${s.script ? `<div class="script-box">${s.script}</div>` : ''}</div><button class="restart-btn" onclick="renderStep('start')"><i class="fas fa-redo"></i> Başa Dön</button>`;
     } else {
@@ -1606,39 +1606,121 @@ async function addManualFeedbackPopup() {
         monthOptions += `<option value="${value}" ${isCurrent ? 'selected' : ''}>${text}</option>`;
     }
     
+    // YENİ HTML TASARIMI: Daha düzenli ve etiketli form
+    const newHtmlContent = `
+        <div class="manual-feedback-form">
+            <div class="form-group">
+                <label for="manual-q-agent">Temsilci Adı <span class="required">*</span></label>
+                <select id="manual-q-agent" class="swal2-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="manual-q-topic">Konu / Başlık <span class="required">*</span></label>
+                <input id="manual-q-topic" class="swal2-input" placeholder="Geri bildirim konusu (Örn: Yeni Kampanya Bilgilendirmesi)">
+            </div>
+            
+            <div class="grid-2-cols">
+                <div class="form-group">
+                    <label for="manual-q-callid">Çağrı/Etkileşim ID <span class="required">*</span></label>
+                    <input id="manual-q-callid" class="swal2-input" placeholder="ID (Örn: 123456)">
+                </div>
+                <div class="form-group">
+                    <label for="manual-q-date">Tarih <span class="required">*</span></label>
+                    <input type="date" id="manual-q-date" class="swal2-input" value="${new Date().toISOString().substring(0, 10)}">
+                </div>
+            </div>
+
+            <div class="grid-3-cols">
+                <div class="form-group">
+                    <label for="manual-q-channel">Kanal</label>
+                    <select id="manual-q-channel" class="swal2-input">
+                        <option value="Telefon">Telefon</option>
+                        <option value="Canlı Destek">Canlı Destek</option>
+                        <option value="E-posta">E-posta</option>
+                        <option value="Sosyal Medya">Sosyal Medya</option>
+                        <option value="Yok">Yok/Diğer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="manual-q-period">Dönem</label>
+                    <select id="manual-q-period" class="swal2-input">${monthOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label for="manual-q-type">Tip</label>
+                    <select id="manual-q-type" class="swal2-input">
+                        <option value="Feedback">Feedback</option>
+                        <option value="Bilgilendirme">Bilgilendirme</option>
+                        <option value="Sözlü">Sözlü</option>
+                        <option value="Mail">Mail</option>
+                        <option value="Özel">Özel Konu</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="manual-q-feedback">Geri Bildirim Detayları <span class="required">*</span></label>
+                <textarea id="manual-q-feedback" class="swal2-textarea" placeholder="Buraya geri bildirimin detaylı metnini giriniz..."></textarea>
+            </div>
+        </div>
+        <style>
+            /* Manuel Geri Bildirim Formu Stil İyileştirmeleri */
+            .manual-feedback-form {
+                text-align: left;
+                padding: 10px;
+                background: #fcfcfc;
+                border-radius: 8px;
+                border: 1px solid #eee;
+            }
+            .form-group {
+                margin-bottom: 12px;
+            }
+            .form-group label {
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: var(--primary);
+                display: block;
+                margin-bottom: 4px;
+            }
+            .grid-2-cols {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+            .grid-3-cols {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 15px;
+            }
+            .required {
+                color: var(--accent);
+                font-size: 0.9rem;
+            }
+            /* Input/Select/Textarea stillerini genel swal2-input stilinden devraldık */
+            .manual-feedback-form .swal2-input, .manual-feedback-form .swal2-textarea {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 10px 12px !important;
+                border: 1px solid #dcdcdc !important;
+                border-radius: 6px !important;
+                font-size: 0.95rem !important;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+            .manual-feedback-form .swal2-input:focus, .manual-feedback-form .swal2-textarea:focus {
+                border-color: var(--secondary) !important;
+                box-shadow: 0 0 0 2px rgba(250, 187, 0, 0.2) !important;
+            }
+            .manual-feedback-form .swal2-textarea {
+                min-height: 100px;
+                resize: vertical;
+            }
+        </style>
+    `;
+    
     // Modalı görüntüdeki gibi düzenledik (Agent Select ve sade alanlar)
     const { value: formValues } = await Swal.fire({
         title: 'Manuel Geri Bildirim Yaz',
-        html: `
-            <select id="manual-q-agent" class="swal2-input" style="width:100%; margin-bottom:10px;"></select>
-            <input id="manual-q-topic" class="swal2-input" placeholder="Geri Bildirim Konusu / Başlık" style="margin-bottom:10px;">
-            <!-- YENİ ALANLAR: Çağrı ID, Tarih, Kanal, Dönem -->
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-                <input id="manual-q-callid" class="swal2-input" placeholder="Çağrı ID (Zorunlu)" style="flex:1;">
-                <input type="date" id="manual-q-date" class="swal2-input" style="flex:1;" value="${new Date().toISOString().substring(0, 10)}">
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-                <select id="manual-q-channel" class="swal2-input" style="width:100%;">
-                    <option value="Telefon">Telefon</option>
-                    <option value="Canlı Destek">Canlı Destek</option>
-                    <option value="E-posta">E-posta</option>
-                    <option value="Sosyal Medya">Sosyal Medya</option>
-                    <option value="Yok">Yok/Diğer</option>
-                </select>
-                <select id="manual-q-period" class="swal2-input" style="width:100%;">
-                    ${monthOptions}
-                </select>
-            </div>
-            <textarea id="manual-q-feedback" class="swal2-textarea" placeholder="Geri bildirim detayları..." style="margin-bottom:10px;"></textarea>
-            <select id="manual-q-type" class="swal2-input" style="width:100%;">
-                <option value="Feedback">Feedback</option>
-                <option value="Bilgilendirme">Bilgilendirme</option>
-                <option value="Sözlü">Sözlü</option>
-                <option value="Mail">Mail</option>
-                <option value="Özel">Özel Konu</option>
-            </select>
-        `,
-        width: '500px',
+        html: newHtmlContent,
+        width: '600px', // Modal genişliğini artırdık
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-save"></i> Kaydet',
         didOpen: () => {
@@ -1659,8 +1741,8 @@ async function addManualFeedbackPopup() {
             const callId = document.getElementById('manual-q-callid').value.trim();
             const rawCallDate = document.getElementById('manual-q-date').value;
             const callDate = formatDateToDDMMYYYY(rawCallDate);
-            if (!agentName || !feedback || !callId || !rawCallDate) {
-                 Swal.showValidationMessage('Temsilci, Geri Bildirim, Çağrı ID ve Tarih alanları boş bırakılamaz.'); 
+            if (!agentName || !feedback || !callId || !rawCallDate || !topic) { // Konu/Başlık da zorunlu yapıldı
+                 Swal.showValidationMessage('Tüm (*) işaretli alanlar zorunludur!'); 
                  return false;
             }
             
@@ -1914,7 +1996,7 @@ async function logEvaluationPopup() {
         </div>`;
     
     const { value: formValues } = await Swal.fire({
-        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '    💾     Kaydet',
+        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '💾 Kaydet',
         didOpen: () => { 
             if (isTelesatis) window.recalcTotalSliderScore(); 
             else if (isChat) window.recalcTotalScore(); 
@@ -2004,7 +2086,7 @@ async function editEvaluation(targetCallId) {
     contentHtml += `<div><label>Revize Feedback</label><textarea id="eval-feedback" class="swal2-textarea">${evalData.feedback||''}</textarea></div></div>`;
     
     const { value: formValues } = await Swal.fire({
-        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '    💾     Güncelle',
+        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '💾 Güncelle',
         didOpen: () => { if (isTelesatis) window.recalcTotalSliderScore(); else if (isChat) window.recalcTotalScore(); },
         preConfirm: () => {
             const callId = document.getElementById('eval-callid').value;
