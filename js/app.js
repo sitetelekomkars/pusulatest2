@@ -1,6 +1,6 @@
 const BAKIM_MODU = false;
 // Apps Script URL'si
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYxTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYzTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec";
 // Oyun Değişkenleri
 let jokers = { call: 1, half: 1, double: 1 };
 let doubleChanceUsed = false;
@@ -1395,7 +1395,7 @@ function loadTrainingData() {
                     <div class="t-card-body">
                         ${t.desc}
                         ${docHtml}
-                        <div class="training-meta-info" style="margin-top:10px; display:flex; justify-content:space-between; font-size:0.8rem; color:#666; padding-top:10px; border-top:1px dashed #eee;">
+                        <div class="training-meta-info">
                             <div><strong>Süre:</strong> ${t.duration || 'Belirtilmedi'}</div>
                             <div><strong>Başlangıç:</strong> ${t.startDate || 'N/A'} - <strong>Bitiş:</strong> ${t.endDate || 'N/A'}</div>
                         </div>
@@ -1568,45 +1568,73 @@ async function addManualFeedbackPopup() {
         Swal.close();
     }
     
-    // GÜNCELLENMİŞ MODAL TASARIMI
+    // GÜNCELLENMİŞ MODAL TASARIMI (Tüm istenen alanlar eklendi)
     const { value: formValues } = await Swal.fire({
         title: 'Manuel Geri Bildirim Yaz',
         html: `
-            <select id="manual-q-agent" class="swal2-input" style="width:100%; margin-bottom:10px;"></select>
-            <input id="manual-q-topic" class="swal2-input" placeholder="Konu / Başlık" style="margin-bottom:10px;">
-            <textarea id="manual-q-feedback" class="swal2-textarea" placeholder="Geri bildirim detayları..." style="margin-bottom:10px; min-height: 120px;"></textarea>
-            <select id="manual-q-type" class="swal2-input" style="width:100%;">
-                <option value="Sözlü">Sözlü</option>
-                <option value="Mail" selected>Mail</option>
-                <option value="Özel">Özel Konu</option>
-            </select>
+            <div class="swal2-container-grid">
+                <select id="manual-q-agent" class="swal2-input swal2-select-full"></select>
+                <div class="swal2-input-row">
+                    <input id="manual-q-callid" class="swal2-input swal2-input-half" placeholder="Çağrı/Konuşma ID (Opsiyonel)">
+                    <input type="date" id="manual-q-date" class="swal2-input swal2-input-half" value="${new Date().toISOString().substring(0, 10)}">
+                </div>
+                <input id="manual-q-topic" class="swal2-input swal2-input-full" placeholder="Konu / Başlık">
+                <div class="swal2-input-row">
+                     <select id="manual-q-channel" class="swal2-input swal2-input-half">
+                        <option value="N/A">Çağrı Kanalı Seçiniz</option>
+                        <option value="Chat">Chat</option>
+                        <option value="Voice">Telefon</option>
+                        <option value="Mail">Mail</option>
+                        <option value="Social">Sosyal Medya</option>
+                    </select>
+                    <select id="manual-q-type" class="swal2-input swal2-input-half">
+                        <option value="Sözlü">Sözlü (Görüşme)</option>
+                        <option value="Mail" selected>Mail (Yazılı Bildirim)</option>
+                        <option value="Ozel">Özel Konu (Takip)</option>
+                    </select>
+                </div>
+                <textarea id="manual-q-feedback" class="swal2-textarea swal2-textarea-full" placeholder="Açıklama (Geri bildirim detayları)..."></textarea>
+            </div>
         `,
-        width: '500px',
+        width: '550px',
         showCancelButton: true,
         confirmButtonText: '  💾   Kaydet',
         didOpen: () => {
             const sel = document.getElementById('manual-q-agent');
             adminUserList.forEach(u => sel.innerHTML += `<option value="${u.name}">${u.name}</option>`);
+            // Swal2'nin düğme stillerini özelleştirme
+            const actions = Swal.getActions();
+            actions.querySelector('.swal2-confirm').style.background = '#6A5ACD'; 
+        },
+        customClass: {
+            title: 'swal2-title-custom'
         },
         preConfirm: () => {
             const agentName = document.getElementById('manual-q-agent').value;
+            const callId = document.getElementById('manual-q-callid').value.trim() || 'N/A';
+            const callDateRaw = document.getElementById('manual-q-date').value;
             const topic = document.getElementById('manual-q-topic').value;
             const feedback = document.getElementById('manual-q-feedback').value;
             const feedbackType = document.getElementById('manual-q-type').value;
+            const channel = document.getElementById('manual-q-channel').value;
+
             if (!agentName || !feedback) {
-                 Swal.showValidationMessage('Temsilci ve Geri Bildirim alanı boş bırakılamaz.'); 
+                 Swal.showValidationMessage('Temsilci ve Açıklama alanı boş bırakılamaz.'); 
                  return false;
             }
+            
+            // Call Date'i GG.AA.YYYY formatına çevirme (zorunlu alan)
+            const formattedDate = formatDateToDDMMYYYY(callDateRaw);
+
             return {
                 agentName,
-                // MANUEL geri bildirimler için CallID ve CallDate özel değerler alır
-                callId: "MANUEL-" + Date.now().toString().substring(6), 
-                callDate: formatDateToDDMMYYYY(new Date()),
+                callId: (callId === 'N/A' && topic) ? `MANUAL-${topic.substring(0, 5).toUpperCase()}` : (callId === 'N/A' ? 'MANUAL-GENEL' : callId),
+                callDate: formattedDate,
                 score: 100, // Manuel olduğu için tam puan
-                details: "Manuel Geri Bildirim: " + (topic || "Genel"),
+                details: `${topic || 'Konu Yok'} | Kanal: ${channel}`,
                 feedback,
                 feedbackType,
-                agentGroup: "Genel" // Manuel olduğu için Genel Grup olarak kaydedilir.
+                agentGroup: "Genel"
             };
         }
     });
