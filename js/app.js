@@ -22,6 +22,8 @@ let wizardStepsData = {};
 let trainingData = [];
 // YENİ: Chart instance'ı tutmak için
 let dashboardChart = null;
+// YENİ: Feedback Log Verisi (Manuel kayıt detayları için)
+let feedbackLogsData = [];
 // ==========================================================
 // --- KALİTE PUANLAMA LOGİĞİ: CHAT (BUTON TABANLI) ---
 // ==========================================================
@@ -261,7 +263,7 @@ function girisYap() {
             const savedRole = data.role;
             if (data.forceChange === true) {
                 Swal.fire({
-                    icon: 'warning', title: '⚠️ Güvenlik Uyarısı',
+                    icon: 'warning', title: ' ⚠️  Güvenlik Uyarısı',
                     text: 'İlk girişiniz. Lütfen şifrenizi değiştirin.',
                     allowOutsideClick: false, allowEscapeKey: false, confirmButtonText: 'Şifremi Değiştir'
                 }).then(() => { changePasswordPopup(true); });
@@ -556,11 +558,11 @@ async function addNewCardPopup() {
         <div style="margin-bottom:15px; text-align:left;">
             <label style="font-weight:bold; font-size:0.9rem;">Ne Ekleyeceksin?</label>
             <select id="swal-type-select" class="swal2-input" style="width:100%; margin-top:5px; height:35px; font-size:0.9rem;" onchange="toggleAddFields()">
-                <option value="card">📌 Bilgi Kartı</option>
-                <option value="news">📢 Duyuru</option>
-                <option value="sales">📞 Telesatış Scripti</option>
-                <option value="sport">🏆 Spor İçeriği</option>
-                <option value="quiz">❓ Quiz Sorusu</option>
+                <option value="card"> 📌  Bilgi Kartı</option>
+                <option value="news"> 📢  Duyuru</option>
+                <option value="sales"> 📞  Telesatış Scripti</option>
+                <option value="sport"> 🏆  Spor İçeriği</option>
+                <option value="quiz"> ❓  Quiz Sorusu</option>
             </select>
         </div>
         <div id="preview-card" class="card Bilgi" style="text-align:left; box-shadow:none; border:1px solid #e0e0e0; margin-top:10px;">
@@ -832,7 +834,7 @@ function openGuide() {
     const grid = document.getElementById('guide-grid');
     grid.innerHTML = '';
     sportsData.forEach((s, index) => {
-        let pronHtml = s.pronunciation ? `<div class="pronunciation-badge">🗣️ ${s.pronunciation}</div>` : '';
+        let pronHtml = s.pronunciation ? `<div class="pronunciation-badge"> 🗣️  ${s.pronunciation}</div>` : '';
         let editBtn = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" style="top:5px; right:5px; z-index:50;" onclick="event.stopPropagation(); editSport('${escapeForJsString(s.title)}')"></i>` : '';
         grid.innerHTML += `<div class="guide-item" onclick="showSportDetail(${index})">${editBtn}<i class="fas ${s.icon} guide-icon"></i><span class="guide-title">${s.title}</span>${pronHtml}<div class="guide-desc">${s.desc}</div><div class="guide-tip"><i class="fas fa-lightbulb"></i> ${s.tip}</div><div style="font-size:0.8rem; color:#999; margin-top:5px;">(Detay için tıkla)</div></div>`;
     });
@@ -840,7 +842,7 @@ function openGuide() {
 function showSportDetail(index) {
     const sport = sportsData[index];
     const detailText = sport.detail ? sport.detail.replace(/\n/g,'<br>') : "Bu içerik için henüz detay eklenmemiş.";
-    const pronDetail = sport.pronunciation ? `<div style="color:#e65100; font-weight:bold; margin-bottom:15px;">🗣️ Okunuşu: ${sport.pronunciation}</div>` : '';
+    const pronDetail = sport.pronunciation ? `<div style="color:#e65100; font-weight:bold; margin-bottom:15px;"> 🗣️  Okunuşu: ${sport.pronunciation}</div>` : '';
     Swal.fire({
         title: `<i class="fas ${sport.icon}" style="color:#0e1b42;"></i> ${sport.title}`,
         html: `${pronDetail}<div style="text-align:left; font-size:1rem; line-height:1.6;">${detailText}</div>`,
@@ -888,14 +890,14 @@ function useJoker(type) {
             let incorrectOpts = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns);
             guess = incorrectOpts[Math.floor(Math.random() * incorrectOpts.length)] || correctAns;
         }
-        Swal.fire({ icon: 'info', title: '📞 Telefon Jokeri', html: `${expert} soruyu cevaplıyor...<br><br>"Benim tahminim kesinlikle **${String.fromCharCode(65 + guess)}** şıkkı. Bundan ${Math.random() < 0.8 ? "çok eminim" : "emin değilim"}."`, confirmButtonText: 'Kapat' });
+        Swal.fire({ icon: 'info', title: ' 📞  Telefon Jokeri', html: `${expert} soruyu cevaplıyor...<br><br>"Benim tahminim kesinlikle **${String.fromCharCode(65 + guess)}** şıkkı. Bundan ${Math.random() < 0.8 ? "çok eminim" : "emin değilim"}."`, confirmButtonText: 'Kapat' });
     } else if (type === 'half') {
         let incorrectOpts = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns).sort(() => Math.random() - 0.5).slice(0, 2);
         incorrectOpts.forEach(idx => { btns[idx].disabled = true; btns[idx].style.textDecoration = 'line-through'; btns[idx].style.opacity = '0.4'; });
-        Swal.fire({ icon: 'success', title: '✂️ Yarı Yarıya', text: 'İki yanlış şık elendi!', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+        Swal.fire({ icon: 'success', title: ' ✂️  Yarı Yarıya', text: 'İki yanlış şık elendi!', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
     } else if (type === 'double') {
         doubleChanceUsed = true;
-        Swal.fire({ icon: 'warning', title: '2️⃣ Çift Cevap', text: 'Bir kez yanlış cevap hakkınız var.', toast: true, position: 'top', showConfirmButton: false, timer: 2500 });
+        Swal.fire({ icon: 'warning', title: '2️ ⃣  Çift Cevap', text: 'Bir kez yanlış cevap hakkınız var.', toast: true, position: 'top', showConfirmButton: false, timer: 2500 });
     }
 }
 function openPenaltyGame() { document.getElementById('penalty-modal').style.display = 'flex'; showLobby(); }
@@ -913,7 +915,7 @@ function fetchLeaderboard() {
             if(data.leaderboard.length === 0) { html = '<tr><td colspan="4" style="text-align:center;">Henüz maç yapılmadı.</td></tr>'; } 
             else {
                 data.leaderboard.forEach((u, i) => {
-                    let medal = i===0 ? '🥇' : (i===1 ? '🥈' : (i===2 ? '🥉' : `<span class="rank-badge">${i+1}</span>`));
+                    let medal = i===0 ? ' 🥇 ' : (i===1 ? ' 🥈 ' : (i===2 ? ' 🥉 ' : `<span class="rank-badge">${i+1}</span>`));
                     let bgStyle = (u.username === currentUser) ? 'background:rgba(250, 187, 0, 0.1);' : '';
                     html += `<tr style="${bgStyle}"><td>${medal}</td><td>${u.username}</td><td>${u.games}</td><td>${u.average}</td></tr>`;
                 });
@@ -986,7 +988,7 @@ function resetField() {
     document.querySelectorAll('.penalty-btn').forEach(b => { b.classList.remove('wrong-first-try'); b.style.textDecoration = ''; b.style.opacity = ''; b.style.background = '#fabb00'; b.style.color = '#0e1b42'; b.style.borderColor = '#f0b500'; b.disabled = false; });
 }
 function finishPenaltyGame() {
-    let title = pScore >= 8 ? "EFSANE! 🏆" : (pScore >= 5 ? "İyi Maçtı! 👏" : "Antrenman Lazım 🤕");
+    let title = pScore >= 8 ? "EFSANE!  🏆 " : (pScore >= 5 ? "İyi Maçtı!  👏 " : "Antrenman Lazım  🤕 ");
     document.getElementById('p-question-text').innerHTML = `<span style="font-size:1.5rem; color:#fabb00;">MAÇ BİTTİ!</span><br>${title}<br>Toplam Skor: ${pScore}/10`;
     document.getElementById('p-options').style.display = 'none'; document.getElementById('p-restart-btn').style.display = 'block';
     fetch(SCRIPT_URL, { method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "logQuiz", username: currentUser, token: getToken(), score: pScore * 10, total: 100 }) });
@@ -1006,7 +1008,7 @@ function renderStep(k){
     const b = document.getElementById('wizard-body');
     let h = `<h2 style="color:var(--primary);">${s.title || ''}</h2>`;
     if(s.result) {
-        let i = s.result === 'red' ? '🛑' : (s.result === 'green' ? '✅' : '⚠️');
+        let i = s.result === 'red' ? ' 🛑 ' : (s.result === 'green' ? ' ✅ ' : ' ⚠️ ');
         let c = s.result === 'red' ? 'res-red' : (s.result === 'green' ? 'res-green' : 'res-yellow');
         h += `<div class="result-box ${c}"><div style="font-size:3rem;margin-bottom:10px;">${i}</div><h3>${s.title}</h3><p>${s.text}</p>${s.script ? `<div class="script-box">${s.script}</div>` : ''}</div><button class="restart-btn" onclick="renderStep('start')"><i class="fas fa-redo"></i> Başa Dön</button>`;
     } else {
@@ -1133,7 +1135,14 @@ function switchQualityTab(tabName, element) {
     // Veri Yükleme
     if (tabName === 'dashboard') loadQualityDashboard();
     else if (tabName === 'evaluations') fetchEvaluationsForAgent();
-    else if (tabName === 'feedback') openFeedbackTab();
+    // DÜZELTME: Feedback sekmesi açılırken önce Feedback_Logs çekilmeli
+    else if (tabName === 'feedback') {
+        fetchEvaluationsForAgent(null, true).then(() => {
+            fetchFeedbackLogs().then(() => {
+                loadFeedbackList();
+            });
+        });
+    }
     else if (tabName === 'training') loadTrainingData();
 }
 // --- DASHBOARD FONKSİYONLARI ---
@@ -1516,34 +1525,25 @@ async function assignTrainingPopup() {
     }
 }
 // --- FEEDBACK MODÜLÜ ---
-// Manuel geri bildirimlerde Dönem/Kanal bilgisi Feedback_Logs tablosunda tutuluyor.
-// Evaluations tablosundaki manuel kayıtlar "minimal" olduğu için burada map ile zenginleştiriyoruz.
-let feedbackLogsMap = {};
 
-async function loadFeedbackLogs() {
+// YENİ FONKSİYON: Feedback_Logs'u çekmek için
+async function fetchFeedbackLogs() {
     try {
-        const response = await fetch(SCRIPT_URL, {
+        const res = await fetch(SCRIPT_URL, {
             method: 'POST',
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({ action: "fetchFeedbackLogs", username: currentUser, token: getToken() })
         });
-        const data = await response.json();
+        const data = await res.json();
         if (data.result === "success") {
-            feedbackLogsMap = {};
-            (data.feedbackLogs || []).forEach(l => {
-                const key = String(l.callId || '').trim();
-                if (key) feedbackLogsMap[key] = l;
-            });
+            feedbackLogsData = data.feedbackLogs || [];
+        } else {
+            feedbackLogsData = [];
         }
-    } catch (e) {
-        // Sessiz geç: listede sadece "Yok" görünür ama sayfa çalışmaya devam eder.
-        console.warn("Feedback logs alınamadı:", e);
+    } catch (error) {
+        console.error("Feedback Logs çekilirken hata oluştu:", error);
+        feedbackLogsData = [];
     }
-}
-
-async function openFeedbackTab() {
-    await loadFeedbackLogs();
-    loadFeedbackList();
 }
 
 function loadFeedbackList() {
@@ -1580,12 +1580,24 @@ function loadFeedbackList() {
         const isEvaluationDetail = String(e.details).startsWith('[');
         const feedbackTopic = isEvaluationDetail ? 'Değerlendirme Konusu' : (e.details || 'Belirtilmemiş');
         
-        // Dönem, Kanal ve Tipi belirle (Manuel kayıtlarda bu bilgileri ekliyoruz)
+        // Dönem, Kanal ve Tipi belirle (Manuel kayıtlarda bu bilgileri Evaluations'tan değil, Feedback_Logs'tan çekiyoruz)
         const isManual = String(e.callId).toUpperCase().startsWith('MANUEL-');
-        // Backend'den gelen Dönem/Kanal bilgileri:
-        const period = e.period || e.date.substring(3); // Eğer period yoksa tarihten al (manuel kayıtlar için gelmesi beklenir)
-        const channel = e.channel || 'Yok'; // Eğer channel yoksa varsayılan 'Yok'
+        
+        let period = e.period || e.date.substring(3);
+        let channel = (e.channel && String(e.channel).trim()) ? String(e.channel).trim() : 'Yok';
         const infoType = e.feedbackType || 'Yok';
+
+        // DÜZELTME MANTIĞI: Eğer kayıt Manuel ise, detaylı bilgiyi feedbackLogsData'dan çek.
+        if (isManual) {
+            // CallId'deki MANUEL- ön ekini atarak Feedback_Logs'taki Call_ID ile eşleştirme
+            const logRow = feedbackLogsData.find(x => String(x.callId) === String(cleanCallId));
+            if (logRow) {
+                // Not: logRow.period ve logRow.channel zaten Apps Script'te string olarak temizleniyor (row[X] || 'N/A')
+                // Değer 'N/A' değilse veya boş değilse kullan
+                period = logRow.period && logRow.period !== 'N/A' ? logRow.period : period;
+                channel = logRow.channel && logRow.channel !== 'N/A' ? logRow.channel : 'Yok';
+            }
+        }
         
         listEl.innerHTML += `
             <div class="feedback-card" style="border-left-color: ${feedbackClass};">
@@ -1658,7 +1670,6 @@ async function addManualFeedbackPopup() {
                     <input type="date" id="manual-q-date" class="swal2-input" value="${new Date().toISOString().substring(0, 10)}">
                 </div>
             </div>
-
             <div class="grid-3-cols">
                 <div class="form-group">
                     <label for="manual-q-channel">Kanal</label>
@@ -1803,16 +1814,17 @@ async function addManualFeedbackPopup() {
         .then(r => r.json()).then(d => {
             if (d.result === "success") { 
                 Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
-                // Tüm değerlendirmeleri tekrar çek ki yeni feedback listeye eklensin
+                // DÜZELTME: Hem evaluations hem de feedback logs güncellenmeli
                 fetchEvaluationsForAgent(formValues.agentName);
-                loadFeedbackList(); // Feedback listesini yenile
+                fetchFeedbackLogs().then(() => {
+                    loadFeedbackList();
+                });
             } else { 
                 Swal.fire('Hata', d.message, 'error'); 
             }
         });
     }
 }
-// --- EVALUATION LOGIC ---
 async function fetchEvaluationsForAgent(forcedName, silent=false) {
     const listEl = document.getElementById('evaluations-list');
     if(!silent) listEl.innerHTML = 'Yükleniyor...';
@@ -2026,7 +2038,7 @@ async function logEvaluationPopup() {
         </div>`;
     
     const { value: formValues } = await Swal.fire({
-        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '💾 Kaydet',
+        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: ' 💾  Kaydet',
         didOpen: () => { 
             if (isTelesatis) window.recalcTotalSliderScore(); 
             else if (isChat) window.recalcTotalScore(); 
@@ -2065,8 +2077,16 @@ async function logEvaluationPopup() {
             body: JSON.stringify({ action: "logEvaluation", username: currentUser, token: getToken(), ...formValues }) 
         })
         .then(r => r.json()).then(d => {
-            if (d.result === "success") { Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false }); fetchEvaluationsForAgent(formValues.agentName); } 
-            else { Swal.fire('Hata', d.message, 'error'); }
+            if (d.result === "success") { 
+                Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false }); 
+                // DÜZELTME: Hem evaluations hem de feedback logs güncellenmeli
+                fetchEvaluationsForAgent(formValues.agentName);
+                fetchFeedbackLogs().then(() => {
+                    loadFeedbackList();
+                });
+            } else { 
+                Swal.fire('Hata', d.message, 'error'); 
+            }
         });
     }
 }
@@ -2116,7 +2136,7 @@ async function editEvaluation(targetCallId) {
     contentHtml += `<div><label>Revize Feedback</label><textarea id="eval-feedback" class="swal2-textarea">${evalData.feedback||''}</textarea></div></div>`;
     
     const { value: formValues } = await Swal.fire({
-        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: '💾 Güncelle',
+        html: contentHtml, width: '600px', showCancelButton: true, confirmButtonText: ' 💾  Güncelle',
         didOpen: () => { if (isTelesatis) window.recalcTotalSliderScore(); else if (isChat) window.recalcTotalScore(); },
         preConfirm: () => {
             const callId = document.getElementById('eval-callid').value;
@@ -2145,7 +2165,14 @@ async function editEvaluation(targetCallId) {
             body: JSON.stringify({ action: "updateEvaluation", username: currentUser, token: getToken(), ...formValues }) 
         })
         .then(r => r.json()).then(d => {
-            if (d.result === "success") { Swal.fire({ icon: 'success', title: 'Güncellendi', timer: 1500, showConfirmButton: false }); fetchEvaluationsForAgent(agentName); } 
+            if (d.result === "success") { 
+                Swal.fire({ icon: 'success', title: 'Güncellendi', timer: 1500, showConfirmButton: false }); 
+                // DÜZELTME: Güncelleme sonrası hem evaluations hem de feedback logs güncellenmeli
+                fetchEvaluationsForAgent(agentName);
+                fetchFeedbackLogs().then(() => {
+                    loadFeedbackList();
+                });
+            } 
             else { Swal.fire('Hata', d.message, 'error'); }
         });
     }
