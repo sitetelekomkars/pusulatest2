@@ -88,7 +88,7 @@
                         <button class="filter-btn" onclick="filterCategory(this, 'Kampanya')"><i class="fas fa-gift"></i> Kampanya</button>
                         <button class="filter-btn" onclick="filterCategory(this, 'Bilgi')"><i class="fas fa-info-circle"></i> Bilgi</button>
                         <div class="divider"></div>
-                        <a href="https://www.ssportplus.com/yayin-akisi/" target="_blank" class="filter-btn link-btn"><i class="fas fa-calendar-alt"></i> Yayın Akışı</a>
+                        <button class="filter-btn link-btn" onclick="openBroadcastFlow()"><i class="fas fa-calendar-alt"></i> Yayın Akışı</button>
                         <button class="filter-btn link-btn" onclick="openGuide()"><i class="fas fa-book"></i> Spor Rehberi</button>
                         <button class="filter-btn link-btn" onclick="openWizard()"><i class="fas fa-robot"></i> İade Asistanı</button>
                         
@@ -309,19 +309,8 @@
             
             <!-- GÜNCELLENEN ALAN: view-feedback section (Manuel Ekle butonu eklendi) -->
             <div id="view-feedback" class="q-view-section">
-                <div class="q-view-header" style="flex-wrap: wrap; gap:10px;">
+                <div class="q-view-header">
                     <h2>Geri Bildirimler</h2>
-
-                    <!-- YENİ: Admin temsilci/grup filtreleri (Dashboard ile aynı mantık) -->
-                    <div id="feedback-filters" style="display:none; gap:10px; margin-left:auto; align-items:center; flex-wrap:wrap;">
-                        <select id="q-feedback-group" onchange="updateFeedbackAgentList()" class="minimal-select" style="max-width: 120px;">
-                            <option value="all">Tüm Gruplar</option>
-                        </select>
-                        <select id="q-feedback-agent" onchange="refreshFeedbackData()" class="minimal-select" style="max-width: 130px;">
-                            <option value="all">Tüm Temsilciler</option>
-                        </select>
-                    </div>
-
                     <!-- YENİ BUTON: Sadece yöneticilere görünecek şekilde style:display:none eklendi -->
                     <button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none;" onclick="addManualFeedbackPopup()">
                         <i class="fas fa-plus-circle"></i> Manuel Geri Bildirim Ekle
