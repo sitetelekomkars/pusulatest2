@@ -1,6 +1,6 @@
 const BAKIM_MODU = false;
 // Apps Script URL'si
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz42y0ScGdIMJKOsxXO9yG0Yj6uX4LbV5FQPkUP-UbbQtdFO64Ve9OguM2z0M2xTREEng/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYxTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec";
 // Oyun Değişkenleri
 let jokers = { call: 1, half: 1, double: 1 };
 let doubleChanceUsed = false;
@@ -20,10 +20,6 @@ let adminUserList = [];
 let allEvaluationsData = [];
 let wizardStepsData = {};
 let trainingData = [];
-
-// Kalite Avı senaryoları (Data sheet Type = 'hunt')
-let huntScenarios = [];
-
 // YENİ: Chart instance'ı tutmak için
 let dashboardChart = null;
 // YENİ: Feedback Log Verisi (Manuel kayıt detayları için)
@@ -432,34 +428,6 @@ function loadContentData() {
             startTicker();
         } else { document.getElementById('loading').innerHTML = `Veriler alınamadı: ${data.message || 'Bilinmeyen Hata'}`; }
     }).catch(error => { document.getElementById('loading').innerHTML = 'Bağlantı Hatası! Sunucuya ulaşılamıyor.'; });
-
-            // Kalite Avı senaryoları (Type = hunt)
-            // Beklenen format:
-            // Title: senaryo başlığı
-            // Text: senaryo metni
-            // Script: soru / görev (opsiyonel)
-            // QuizOptions: seçenekler "text|pts|tag|explain || text|pts|tag|explain ..." biçiminde
-            huntScenarios = rawData.filter(i => (i.Type || '').toLowerCase() === 'hunt').map(i => {
-                let options = [];
-                const rawOpts = (i.QuizOptions || '').toString();
-                if (rawOpts.trim()) {
-                    options = rawOpts.split('||').map(x => x.trim()).filter(Boolean).map(x => {
-                        const parts = x.split('|').map(p => p.trim());
-                        return {
-                            text: parts[0] || '',
-                            pts: parseInt(parts[1] || '0', 10) || 0,
-                            tag: parts[2] || '',
-                            explain: parts.slice(3).join('|') || ''
-                        };
-                    }).filter(o => o.text);
-                }
-                return {
-                    title: i.Title || 'Senaryo',
-                    text: i.Text || '',
-                    question: i.Script || i.Question || 'En doğru aksiyon hangisi?',
-                    options: options
-                };
-            }).filter(s => s.options && s.options.length >= 2);
 }
 function loadWizardData() {
     return new Promise((resolve, reject) => {
@@ -897,6 +865,414 @@ function toggleSales(index) {
     if(item.classList.contains('active')){ icon.classList.replace('fa-chevron-down', 'fa-chevron-up'); } 
     else { icon.classList.replace('fa-chevron-up', 'fa-chevron-down'); }
 }
+
+// --- PENALTY GAME ---
+// Tasarım/Güncelleme: Tekrarlayan soru engeli, akıllı 50:50, double rozet, daha net maç sonu ekranı
+
+let pScore = 0, pBalls = 10, pCurrentQ = null;
+let pQuestionQueue = [];        // oturum boyunca sorulacak soru indeksleri (karıştırılmış)
+let pAskedCount = 0;            // kaç soru soruldu
+let pCorrectCount = 0;          // kaç doğru
+let pWrongCount = 0;            // kaç yanlış
+
+function setDoubleIndicator(isActive) {
+    const el = document.getElementById('double-indicator');
+    if (!el) return;
+    el.style.display = isActive ? 'inline-flex' : 'none';
+}
+
+function updateJokerButtons() {
+    const callBtn = document.getElementById('joker-call');
+    const halfBtn = document.getElementById('joker-half');
+    const doubleBtn = document.getElementById('joker-double');
+
+    if (callBtn) callBtn.disabled = jokers.call === 0;
+    if (halfBtn) halfBtn.disabled = jokers.half === 0;
+    if (doubleBtn) doubleBtn.disabled = jokers.double === 0 || firstAnswerIndex !== -1;
+
+    // Double aktifken diğerleri kilitlensin
+    if (firstAnswerIndex !== -1) {
+        if (callBtn) callBtn.disabled = true;
+        if (halfBtn) halfBtn.disabled = true;
+        if (doubleBtn) doubleBtn.disabled = true;
+    }
+}
+
+function useJoker(type) {
+    if (!pCurrentQ) return;
+    if (jokers[type] === 0) return;
+    if (firstAnswerIndex !== -1 && type !== 'double') return;
+
+    jokers[type] = 0;
+    updateJokerButtons();
+
+    const currentQ = pCurrentQ;
+    const correctAns = currentQ.a;
+    const btns = document.querySelectorAll('.penalty-btn');
+
+    if (type === 'call') {
+        const experts = ["Umut Bey", "Doğuş Bey", "Deniz Bey", "Esra Hanım"];
+        const expert = experts[Math.floor(Math.random() * experts.length)];
+
+        let guess = correctAns;
+        // %80 doğru, %20 yanlış tahmin
+        if (Math.random() > 0.8 && currentQ.opts.length > 1) {
+            const incorrect = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns);
+            guess = incorrect[Math.floor(Math.random() * incorrect.length)] ?? correctAns;
+        }
+
+        Swal.fire({
+            icon: 'info',
+            title: ' 📞 Telefon Jokeri',
+            html: `${expert} soruyu cevaplıyor...<br><br>"Benim tahminim **${String.fromCharCode(65 + guess)}** şıkkı. Bundan ${Math.random() < 0.8 ? "çok eminim" : "emin değilim"}."`,
+            confirmButtonText: 'Kapat'
+        });
+
+    } else if (type === 'half') {
+        const optLen = Array.isArray(currentQ.opts) ? currentQ.opts.length : 0;
+        if (optLen <= 2) {
+            Swal.fire({ icon:'info', title:'✂️ 50:50', text:'Bu soruda 50:50 uygulanamaz.', toast:true, position:'top', showConfirmButton:false, timer:1800 });
+            return;
+        }
+
+        // 4+ şıkta 2 yanlış, 3 şıkta 1 yanlış ele
+        const removeCount = optLen >= 4 ? 2 : 1;
+        const incorrect = currentQ.opts.map((_, i) => i).filter(i => i !== correctAns);
+        incorrect.sort(() => Math.random() - 0.5).slice(0, removeCount).forEach(idx => {
+            const b = btns[idx];
+            if (!b) return;
+            b.disabled = true;
+            b.style.textDecoration = 'line-through';
+            b.style.opacity = '0.4';
+        });
+
+        Swal.fire({
+            icon: 'success',
+            title: ' ✂️ 50:50',
+            text: removeCount === 2 ? 'İki yanlış şık elendi!' : 'Bir yanlış şık elendi!',
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 1400
+        });
+
+    } else if (type === 'double') {
+        doubleChanceUsed = true;
+        setDoubleIndicator(true);
+        Swal.fire({
+            icon: 'warning',
+            title: '2️ ⃣ Çift Cevap',
+            text: 'Bir kez yanlış cevap hakkın var.',
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 2200
+        });
+    }
+}
+
+function openPenaltyGame() {
+    document.getElementById('penalty-modal').style.display = 'flex';
+    showLobby();
+}
+
+function showLobby() {
+    document.getElementById('penalty-lobby').style.display = 'flex';
+    document.getElementById('penalty-game-area').style.display = 'none';
+    fetchLeaderboard();
+}
+
+function startGameFromLobby() {
+    document.getElementById('penalty-lobby').style.display = 'none';
+    document.getElementById('penalty-game-area').style.display = 'block';
+    startPenaltySession();
+}
+
+function fetchLeaderboard() {
+    const tbody = document.getElementById('leaderboard-body');
+    const loader = document.getElementById('leaderboard-loader');
+    const table = document.getElementById('leaderboard-table');
+
+    if (!tbody || !loader || !table) return;
+
+    tbody.innerHTML = '';
+    loader.style.display = 'block';
+    table.style.display = 'none';
+
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "getLeaderboard" })
+    })
+    .then(r => r.json())
+    .then(data => {
+        loader.style.display = 'none';
+        if (data.result !== "success") {
+            loader.innerText = "Yüklenemedi.";
+            loader.style.display = 'block';
+            return;
+        }
+
+        table.style.display = 'table';
+        let html = '';
+
+        if (!data.leaderboard || data.leaderboard.length === 0) {
+            html = '<tr><td colspan="4" style="text-align:center;">Henüz maç yapılmadı.</td></tr>';
+        } else {
+            data.leaderboard.forEach((u, i) => {
+                const medal = i===0 ? '🥇' : (i===1 ? '🥈' : (i===2 ? '🥉' : `<span class="rank-badge">${i+1}</span>`));
+                const bgStyle = (u.username === currentUser) ? 'background:rgba(250, 187, 0, 0.1);' : '';
+                html += `<tr style="${bgStyle}"><td>${medal}</td><td>${u.username}</td><td>${u.games}</td><td>${u.average}</td></tr>`;
+            });
+        }
+        tbody.innerHTML = html;
+    })
+    .catch(() => {
+        loader.style.display = 'none';
+        loader.innerText = "Bağlantı hatası.";
+        loader.style.display = 'block';
+    });
+}
+
+function buildQuestionQueue() {
+    const n = quizQuestions.length;
+    const idxs = Array.from({ length: n }, (_, i) => i);
+    idxs.sort(() => Math.random() - 0.5);
+
+    // 10 soru için yeter yoksa, yine de döngüye sokmayalım: kalan toplarda tekrar olabilir.
+    // ama önce tüm sorular bir kez gelsin.
+    return idxs;
+}
+
+function startPenaltySession() {
+    // Session reset
+    pScore = 0;
+    pBalls = 10;
+    pAskedCount = 0;
+    pCorrectCount = 0;
+    pWrongCount = 0;
+
+    jokers = { call: 1, half: 1, double: 1 };
+    doubleChanceUsed = false;
+    firstAnswerIndex = -1;
+    setDoubleIndicator(false);
+
+    // Soru kuyruğu
+    pQuestionQueue = buildQuestionQueue();
+
+    updateJokerButtons();
+    document.getElementById('p-score').innerText = pScore;
+    document.getElementById('p-balls').innerText = pBalls;
+
+    const restartBtn = document.getElementById('p-restart-btn');
+    const optionsEl = document.getElementById('p-options');
+    if (restartBtn) restartBtn.style.display = 'none';
+    if (optionsEl) optionsEl.style.display = 'grid';
+
+    resetField();
+    loadPenaltyQuestion();
+}
+
+function pickNextQuestion() {
+    if (quizQuestions.length === 0) return null;
+
+    // Önce kuyruktan tüket
+    if (pQuestionQueue.length > 0) {
+        const i = pQuestionQueue.shift();
+        return quizQuestions[i];
+    }
+
+    // Kuyruk bitti ama top devam ediyor: artık random (soru azsa)
+    return quizQuestions[Math.floor(Math.random() * quizQuestions.length)];
+}
+
+function loadPenaltyQuestion() {
+    if (pBalls <= 0) { finishPenaltyGame(); return; }
+    if (!Array.isArray(quizQuestions) || quizQuestions.length === 0) {
+        Swal.fire('Hata', 'Soru yok!', 'warning');
+        return;
+    }
+
+    pCurrentQ = pickNextQuestion();
+    if (!pCurrentQ || !pCurrentQ.opts || pCurrentQ.opts.length < 2) {
+        Swal.fire('Hata', 'Bu soru hatalı formatta (şık yok).', 'error');
+        // bir sonraki soruyu dene
+        pCurrentQ = pickNextQuestion();
+        if (!pCurrentQ) return;
+    }
+
+    pAskedCount++;
+    doubleChanceUsed = false;
+    firstAnswerIndex = -1;
+    setDoubleIndicator(false);
+    updateJokerButtons();
+
+    const qEl = document.getElementById('p-question-text');
+    if (qEl) qEl.innerText = pCurrentQ.q || "Soru";
+
+    let html = '';
+    pCurrentQ.opts.forEach((opt, index) => {
+        const letter = String.fromCharCode(65 + index);
+        html += `<button class="penalty-btn" onclick="shootBall(${index})">${letter}: ${opt}</button>`;
+    });
+
+    const optionsEl = document.getElementById('p-options');
+    if (optionsEl) optionsEl.innerHTML = html;
+}
+
+function shootBall(idx) {
+    const btns = document.querySelectorAll('.penalty-btn');
+    const isCorrect = (idx === pCurrentQ.a);
+
+    // Double joker: ilk yanlışta bir hak daha
+    if (!isCorrect && doubleChanceUsed && firstAnswerIndex === -1) {
+        firstAnswerIndex = idx;
+        if (btns[idx]) {
+            btns[idx].classList.add('wrong-first-try');
+            btns[idx].disabled = true;
+        }
+        Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'İlk Hata! Kalan Hakkın: 1', showConfirmButton: false, timer: 1400, background: '#ffc107' });
+        updateJokerButtons();
+        return;
+    }
+
+    // Artık atış kesinleşti
+    btns.forEach(b => b.disabled = true);
+
+    const ballWrap = document.getElementById('ball-wrap');
+    const keeperWrap = document.getElementById('keeper-wrap');
+    const shooterWrap = document.getElementById('shooter-wrap');
+    const goalMsg = document.getElementById('goal-msg');
+
+    const shotDir = Math.floor(Math.random() * 4);
+    if (shooterWrap) shooterWrap.classList.add('shooter-run');
+
+    setTimeout(() => {
+        if (keeperWrap) {
+            if (isCorrect) {
+                if (shotDir === 0 || shotDir === 2) keeperWrap.classList.add('keeper-dive-right');
+                else keeperWrap.classList.add('keeper-dive-left');
+            } else {
+                if (shotDir === 0 || shotDir === 2) keeperWrap.classList.add('keeper-dive-left');
+                else keeperWrap.classList.add('keeper-dive-right');
+            }
+        }
+
+        if (isCorrect) {
+            if (ballWrap) {
+                if (shotDir === 0) ballWrap.classList.add('ball-shoot-left-top');
+                else if (shotDir === 1) ballWrap.classList.add('ball-shoot-right-top');
+                else if (shotDir === 2) ballWrap.classList.add('ball-shoot-left-low');
+                else ballWrap.classList.add('ball-shoot-right-low');
+            }
+
+            setTimeout(() => {
+                if (goalMsg) {
+                    goalMsg.innerText = "GOL!!!";
+                    goalMsg.style.color = "#fabb00";
+                    goalMsg.classList.add('show');
+                }
+                pScore++;
+                pCorrectCount++;
+                document.getElementById('p-score').innerText = pScore;
+
+                Swal.fire({ toast:true, position:'top', icon:'success', title:'Mükemmel Şut!', showConfirmButton:false, timer:900, background:'#a5d6a7' });
+            }, 450);
+
+        } else {
+            pWrongCount++;
+
+            const showWrong = () => {
+                if (goalMsg) {
+                    goalMsg.style.color = "#ef5350";
+                    goalMsg.classList.add('show');
+                }
+                Swal.fire({ icon:'error', title:'Kaçırdın!', text:`Doğru: ${String.fromCharCode(65 + pCurrentQ.a)}`, showConfirmButton:true, timer:2400, background:'#ef9a9a' });
+            };
+
+            if (Math.random() > 0.5) {
+                if (ballWrap) {
+                    ballWrap.style.bottom = "160px";
+                    ballWrap.style.left = (shotDir === 0 || shotDir === 2) ? "40%" : "60%";
+                    ballWrap.style.transform = "scale(0.6)";
+                }
+                setTimeout(() => { if (goalMsg) goalMsg.innerText = "KURTARDI!"; showWrong(); }, 450);
+            } else {
+                if (ballWrap) ballWrap.classList.add(Math.random() > 0.5 ? 'ball-miss-left' : 'ball-miss-right');
+                setTimeout(() => { if (goalMsg) goalMsg.innerText = "DIŞARI!"; showWrong(); }, 450);
+            }
+        }
+    }, 300);
+
+    // top azalt
+    pBalls--;
+    document.getElementById('p-balls').innerText = pBalls;
+
+    setTimeout(() => { resetField(); loadPenaltyQuestion(); }, 2400);
+}
+
+function resetField() {
+    const ballWrap = document.getElementById('ball-wrap');
+    const keeperWrap = document.getElementById('keeper-wrap');
+    const shooterWrap = document.getElementById('shooter-wrap');
+    const goalMsg = document.getElementById('goal-msg');
+
+    if (ballWrap) { ballWrap.className = 'ball-wrapper'; ballWrap.style = ""; }
+    if (keeperWrap) keeperWrap.className = 'keeper-wrapper';
+    if (shooterWrap) shooterWrap.className = 'shooter-wrapper';
+    if (goalMsg) goalMsg.classList.remove('show');
+
+    document.querySelectorAll('.penalty-btn').forEach(b => {
+        b.classList.remove('wrong-first-try');
+        b.style.textDecoration = '';
+        b.style.opacity = '';
+        b.style.background = '#fabb00';
+        b.style.color = '#0e1b42';
+        b.style.borderColor = '#f0b500';
+        b.disabled = false;
+    });
+}
+
+function finishPenaltyGame() {
+    const totalShots = 10;
+    const title = pScore >= 8 ? "EFSANE! 🏆" : (pScore >= 5 ? "İyi Maçtı! 👏" : "Antrenman Lazım 🤕");
+    const acc = Math.round((pCorrectCount / Math.max(1, (pCorrectCount + pWrongCount))) * 100);
+
+    const qEl = document.getElementById('p-question-text');
+    if (qEl) {
+        qEl.innerHTML = `
+            <div style="font-size:1.5rem; color:#fabb00; font-weight:800;">MAÇ BİTTİ!</div>
+            <div style="margin-top:4px; font-size:1.1rem; color:#fff;">${title}</div>
+            <div style="margin-top:8px; font-size:1rem; color:#ddd;">
+                <b>Skor:</b> ${pScore}/${totalShots} &nbsp; • &nbsp;
+                <b>Doğruluk:</b> ${acc}%
+            </div>
+            <div style="margin-top:6px; font-size:0.9rem; color:#bbb;">
+                Doğru: ${pCorrectCount} &nbsp; | &nbsp; Yanlış: ${pWrongCount}
+            </div>
+            <div style="margin-top:10px; font-size:0.85rem; color:#aaa;">
+                Yeniden oynamak için aşağıdan başlatabilirsin.
+            </div>
+        `;
+    }
+
+    const optionsEl = document.getElementById('p-options');
+    const restartBtn = document.getElementById('p-restart-btn');
+    if (optionsEl) optionsEl.style.display = 'none';
+    if (restartBtn) restartBtn.style.display = 'block';
+
+    // Leaderboard log (mevcut backend uyumu)
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "logQuiz", username: currentUser, token: getToken(), score: pScore * 10, total: 100 })
+    }).finally(() => {
+        // lobby tablosunu güncel tut
+        setTimeout(fetchLeaderboard, 600);
+    });
+}
+
+
 // --- WIZARD FUNCTIONS ---
 function openWizard(){
     document.getElementById('wizard-modal').style.display='flex';
@@ -981,7 +1357,7 @@ function openQualityArea() {
         if(assignBtn) assignBtn.style.display = 'block';
         if(manualFeedbackBtn) manualFeedbackBtn.style.display = 'flex';
         
-        // Kullanıcı listesi boşsa çek, sonra filtreleri doldur
+	        // Kullanıcı listesi boşsa çek, sonra filtreleri doldur
         if (adminUserList.length === 0) {
             fetchUserListForAdmin().then(users => {
                 const groupSelect = document.getElementById('q-admin-group');
@@ -990,22 +1366,26 @@ function openQualityArea() {
                     groupSelect.innerHTML = `<option value="all">Tüm Gruplar</option>` + groups.map(g => `<option value="${g}">${g}</option>`).join('');
                     updateAgentListBasedOnGroup();
                 }
-                populateDashboardFilters(); // Dashboard filtrelerini de doldur
+	                populateDashboardFilters(); // Dashboard filtrelerini de doldur
+	                populateFeedbackFilters();  // Feedback filtrelerini de doldur
             });
         } else {
-            populateDashboardFilters(); // Liste zaten varsa direkt doldur
+	            populateDashboardFilters(); // Liste zaten varsa direkt doldur
+	            populateFeedbackFilters();  // Feedback filtrelerini de doldur
         }
     } else {
         if(adminFilters) adminFilters.style.display = 'none';
         if(assignBtn) assignBtn.style.display = 'none';
         if(manualFeedbackBtn) manualFeedbackBtn.style.display = 'none';
         
-        // Admin değilse filtreleri gizle
+	        // Admin değilse filtreleri gizle
         const dashFilterArea = document.querySelector('#view-dashboard .q-view-header > div');
         if(dashFilterArea && dashFilterArea.style.display !== 'none') {
              // Burada basitçe dashboard filtre fonksiyonu admin kontrolü yapıyor.
              populateDashboardFilters(); 
         }
+	        // Feedback filtreleri de admin kontrolü yapar
+	        populateFeedbackFilters();
     }
     // Varsayılan sekmeyi aç
     // Tıklanma simülasyonu ile ilk sekmeyi aktif et
@@ -1039,14 +1419,10 @@ function switchQualityTab(tabName, element) {
     // Veri Yükleme
     if (tabName === 'dashboard') loadQualityDashboard();
     else if (tabName === 'evaluations') fetchEvaluationsForAgent();
-    // DÜZELTME: Feedback sekmesi açılırken önce Feedback_Logs çekilmeli
-    else if (tabName === 'feedback') {
-        fetchEvaluationsForAgent(null, true).then(() => {
-            fetchFeedbackLogs().then(() => {
-                loadFeedbackList();
-            });
-        });
-    }
+	    // DÜZELTME: Feedback sekmesi açılırken filtreye göre Evaluations + Feedback_Logs çekilmeli
+	    else if (tabName === 'feedback') {
+	        refreshFeedbackData();
+	    }
     else if (tabName === 'training') loadTrainingData();
 }
 // --- DASHBOARD FONKSİYONLARI ---
@@ -1097,6 +1473,100 @@ function populateDashboardFilters() {
     // İlk yüklemede tüm agentları listele
     updateDashAgentList();
 }
+
+// YENİ: Feedback (Geri Bildirimler) Filtrelerini Doldurma
+function populateFeedbackFilters() {
+    const wrap = document.getElementById('feedback-filters');
+    const groupSelect = document.getElementById('q-feedback-group');
+    const agentSelect = document.getElementById('q-feedback-agent');
+
+    // Sadece admin görebilsin
+    if (!isAdminMode) {
+        if (wrap) wrap.style.display = 'none';
+        return;
+    }
+    if (wrap) wrap.style.display = 'flex';
+    if (!groupSelect || !agentSelect) return;
+
+    const groups = [...new Set(adminUserList.map(u => u.group).filter(g => g))].sort();
+    groupSelect.innerHTML = '<option value="all">Tüm Gruplar</option>';
+    groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g; opt.innerText = g;
+        groupSelect.appendChild(opt);
+    });
+    // İlk yüklemede tüm agentları listele
+    updateFeedbackAgentList();
+}
+
+// YENİ: Feedback Agent Listesini Güncelleme
+function updateFeedbackAgentList() {
+    const groupSelect = document.getElementById('q-feedback-group');
+    const agentSelect = document.getElementById('q-feedback-agent');
+    if (!agentSelect) return;
+
+    const selectedGroup = groupSelect ? groupSelect.value : 'all';
+    agentSelect.innerHTML = '<option value="all">Tüm Temsilciler</option>';
+
+    let filteredUsers = adminUserList;
+    if (selectedGroup !== 'all') {
+        filteredUsers = adminUserList.filter(u => u.group === selectedGroup);
+    }
+    filteredUsers.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.name;
+        opt.innerText = u.name;
+        agentSelect.appendChild(opt);
+    });
+
+    refreshFeedbackData();
+}
+
+// YENİ: Feedback verisini, seçilen filtrelere göre yenile
+function refreshFeedbackData() {
+    fetchEvaluationsForFeedback().then(() => {
+        return fetchFeedbackLogs();
+    }).then(() => {
+        loadFeedbackList();
+    });
+}
+
+// YENİ: Feedback sekmesi için değerlendirmeleri (evaluations) filtrelere göre çek
+async function fetchEvaluationsForFeedback() {
+    const groupSelect = document.getElementById('q-feedback-group');
+    const agentSelect = document.getElementById('q-feedback-agent');
+
+    let targetAgent = currentUser;
+    let targetGroup = 'all';
+
+    if (isAdminMode) {
+        targetAgent = agentSelect ? agentSelect.value : 'all';
+        targetGroup = groupSelect ? groupSelect.value : 'all';
+    }
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                action: "fetchEvaluations",
+                targetAgent: targetAgent,
+                targetGroup: targetGroup,
+                username: currentUser,
+                token: getToken()
+            })
+        });
+        const data = await response.json();
+        if (data.result === 'success') {
+            allEvaluationsData = data.evaluations || [];
+        } else {
+            allEvaluationsData = [];
+        }
+    } catch (err) {
+        console.error('Feedback evaluations çekilirken hata:', err);
+        allEvaluationsData = [];
+    }
+}
 // YENİ: Dashboard Agent Listesini Güncelleme
 function updateDashAgentList() {
     const groupSelect = document.getElementById('q-dash-group');
@@ -1121,9 +1591,44 @@ function updateDashAgentList() {
 function refreshQualityData() {
     loadQualityDashboard();
 }
+async function fetchEvaluationsForDashboard() {
+    // Dashboard filtrelerine göre değerlendirmeleri çek (admin ise seçilen grup/temsilciye göre)
+    const groupSelect = document.getElementById('q-dash-group');
+    const agentSelect = document.getElementById('q-dash-agent');
+
+    let targetAgent = currentUser;
+    let targetGroup = 'all';
+
+    if (isAdminMode) {
+        targetAgent = agentSelect ? agentSelect.value : 'all';
+        targetGroup = groupSelect ? groupSelect.value : 'all';
+    }
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                action: "fetchEvaluations",
+                targetAgent: targetAgent,
+                targetGroup: targetGroup,
+                username: currentUser,
+                token: getToken()
+            })
+        });
+        const data = await response.json();
+        if (data.result === "success") {
+            allEvaluationsData = (data.evaluations || []).reverse();
+        } else {
+            allEvaluationsData = [];
+        }
+    } catch (e) {
+        allEvaluationsData = [];
+    }
+}
 function loadQualityDashboard() {
     // Verileri çek (silent mode), veri gelince grafikleri çiz
-    fetchEvaluationsForAgent(null, true).then(() => {
+    fetchEvaluationsForDashboard().then(() => {
         const monthSelect = document.getElementById('q-dash-month');
         const groupSelect = document.getElementById('q-dash-group');
         const agentSelect = document.getElementById('q-dash-agent');
