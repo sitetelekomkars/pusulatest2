@@ -141,7 +141,6 @@ function toggleFavorite(title) {
 
     if (currentCategory === 'fav') { filterCategory(document.querySelector('.btn-fav'), 'fav'); } 
     else { renderCards(activeCards); }
-    try { renderFeaturedBar(); } catch(e) {}
     try { updateSearchResultCount(activeCards.length || 0, database.length); } catch(e) {}
 }
 function isFav(title) { return getFavs().includes(title); }
@@ -158,6 +157,26 @@ function formatDateToDDMMYYYY(dateString) {
         return `${day}.${month}.${year}`;
     } catch (e) { return dateString; }
 }
+
+function parseDateTRToTS(s){
+    try{
+        if(!s) return 0;
+        const clean = String(s).split(' ')[0];
+        if(clean.includes('.')){
+            const parts = clean.split('.');
+            if(parts.length >= 3){
+                const dd = parseInt(parts[0],10);
+                const mm = parseInt(parts[1],10);
+                const yy = parseInt(parts[2],10);
+                const d = new Date(yy, mm-1, dd);
+                return d.getTime() || 0;
+            }
+        }
+        const d = new Date(s);
+        return d.getTime() || 0;
+    }catch(e){ return 0; }
+}
+
 function isNew(dateStr) {
     if (!dateStr) return false;
     let date;
@@ -419,6 +438,8 @@ function loadContentData() {
             database = rawData.filter(i => ['card','bilgi','teknik','kampanya','ikna'].includes(i.Type.toLowerCase())).map(i => ({
                 title: i.Title, category: i.Category, text: i.Text, script: i.Script, code: i.Code, link: i.Link, date: formatDateToDDMMYYYY(i.Date)
             }));
+            // Yeni eklenenleri üstte göstermek için tarihe göre (azalan) sırala
+            database.sort((a,b) => parseDateTRToTS(b.date) - parseDateTRToTS(a.date));
             newsData = rawData.filter(i => i.Type.toLowerCase() === 'news').map(i => ({
                 date: formatDateToDDMMYYYY(i.Date), title: i.Title, desc: i.Text, type: i.Category, status: i.Status
             }));
@@ -433,7 +454,6 @@ function loadContentData() {
             if(currentCategory === 'fav') { filterCategory(document.querySelector('.btn-fav'), 'fav'); } 
             else { activeCards = database; renderCards(database); }
             startTicker();
-            try { renderFeaturedBar(); } catch(e) {}
             try { updateSearchResultCount(activeCards.length || database.length, database.length); } catch(e) {}
         } else { document.getElementById('loading').innerHTML = `Veriler alınamadı: ${data.message || 'Bilinmeyen Hata'}`; }
     }).catch(error => { document.getElementById('loading').innerHTML = 'Bağlantı Hatası! Sunucuya ulaşılamıyor.'; });
@@ -509,43 +529,6 @@ function updateSearchResultCount(count, total) {
     el.innerText = `🔎 ${count} sonuç${total != null ? ' / ' + total : ''}`;
 }
 
-function renderFeaturedBar() {
-    const bar = document.getElementById('featured-bar');
-    if(!bar) return;
-
-    // Yeni içerikler: tarih alanı dd.MM.yyyy ise sıralama için parse et
-    const parseTR = (s) => {
-        try {
-            if(!s) return 0;
-            const clean = String(s).split(' ')[0];
-            if(clean.includes('.')) {
-                const [dd,mm,yy] = clean.split('.');
-                const d = new Date(parseInt(yy), parseInt(mm)-1, parseInt(dd));
-                return d.getTime() || 0;
-            }
-            const d = new Date(s);
-            return d.getTime() || 0;
-        } catch(e){ return 0; }
-    };
-
-    const total = database.length;
-    const favCount = getFavs().length;
-    const newest = [...database].sort((a,b) => parseTR(b.date) - parseTR(a.date)).slice(0,3);
-    const newestTitles = newest.map(x => x.title).filter(Boolean).join(' • ');
-
-    bar.style.display = 'flex';
-    bar.innerHTML = `
-      <div class="featured-left">
-        <div class="featured-title">Bugün Öne Çıkanlar</div>
-        <div class="featured-sub">${newestTitles || 'İçerikler yükleniyor...'}</div>
-      </div>
-      <div class="featured-right">
-        <div class="fchip"><span class="dot"></span> Toplam: <b>${total}</b></div>
-        <div class="fchip">⭐ Favori: <b>${favCount}</b></div>
-        <div class="fchip">🆕 Yeni (3 gün): <b>${database.filter(x => isNew(x.date)).length}</b></div>
-      </div>
-    `;
-}
 
 
 function filterCategory(btn, cat) {
