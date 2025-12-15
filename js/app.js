@@ -1769,27 +1769,65 @@ function openWizard(){
 }
 function renderStep(k){
     const s = wizardStepsData[k];
-    if (!s) { document.getElementById('wizard-body').innerHTML = `<h2 style="color:red;">HATA: Adım ID (${k}) yok.</h2>`; return; }
+    if (!s) {
+        document.getElementById('wizard-body').innerHTML = `<h2 style="color:red;">HATA: Adım ID (${k}) yok.</h2>`;
+        return;
+    }
     const b = document.getElementById('wizard-body');
+
+    // Sheet metinlerinde satır sonlarını göstermek için (HTML metinler desteklenir)
+    const fmt = (v) => {
+        if (v === null || v === undefined) return '';
+        return v.toString().replace(/\n/g, '
+').replace(/
+/g, '<br>');
+    };
+
+    const scriptBox = (script) => {
+        if (!script) return '';
+        const safeScript = encodeURIComponent(script);
+        return `
+            <div class="script-box" style="margin-top:12px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+                    <span style="font-weight:700; color:#555;">Müşteriye iletilecek:</span>
+                    <button class="btn btn-copy" style="font-size:0.75rem; padding:4px 8px;" onclick="copyScriptContent('${safeScript}')">
+                        <i class="fas fa-copy"></i> Kopyala
+                    </button>
+                </div>
+                <div>${fmt(script)}</div>
+            </div>
+        `;
+    };
+
     let h = `<h2 style="color:var(--primary);">${s.title || ''}</h2>`;
-    if(s.result) {
+
+    if (s.result) {
         let i = s.result === 'red' ? ' 🛑 ' : (s.result === 'green' ? ' ✅ ' : ' ⚠️ ');
         let c = s.result === 'red' ? 'res-red' : (s.result === 'green' ? 'res-green' : 'res-yellow');
-        h += `<div class="result-box ${c}"><div style="font-size:3rem;margin-bottom:10px;">${i}</div><h3>${s.title}</h3><p>${s.text}</p>${s.script ? `<div class="script-box">${s.script}</div>` : ''}</div><button class="restart-btn" onclick="renderStep('start')"><i class="fas fa-redo"></i> Başa Dön</button>`;
+        h += `
+            <div class="result-box ${c}">
+                <div style="font-size:3rem;margin-bottom:10px;">${i}</div>
+                <h3>${s.title || ''}</h3>
+                <p>${fmt(s.text || '')}</p>
+                ${scriptBox(s.script)}
+            </div>
+            <button class="restart-btn" onclick="renderStep('start')"><i class="fas fa-redo"></i> Başa Dön</button>
+        `;
     } else {
-        h += `<p>${s.text}</p>`;
-        if(s.script){
-            h += `<div class="script-box" style="margin:10px 0;">${s.script}</div>`;
-            h += `<div style="display:flex; justify-content:flex-end; margin-bottom:10px;">`
-               + `<button class="btn btn-copy" onclick="copyText('${escapeForJsString(s.script)}')"><i class=\"fas fa-copy\"></i> Kopyala</button>`
-               + `</div>`;
-        }
+        h += `<p>${fmt(s.text || '')}</p>`;
+        if (s.script) h += scriptBox(s.script);
+
         h += `<div class="wizard-options">`;
-        s.options.forEach(o => { h += `<button class="option-btn" onclick="renderStep('${o.next}')"><i class="fas fa-chevron-right"></i> ${o.text}</button>`; });
-        h += `</div>`; if(k !== 'start') h += `<button class="restart-btn" onclick="renderStep('start')" style="background:#eee;color:#333;margin-top:15px;">Başa Dön</button>`;
+        (s.options || []).forEach(o => {
+            h += `<button class="option-btn" onclick="renderStep('${o.next}')"><i class="fas fa-chevron-right"></i> ${o.text}</button>`;
+        });
+        h += `</div>`;
+        if (k !== 'start') h += `<button class="restart-btn" onclick="renderStep('start')" style="background:#eee;color:#333;margin-top:15px;">Başa Dön</button>`;
     }
+
     b.innerHTML = h;
 }
+
 // --- TECH WIZARD ---
 const twState = { currentStep: 'start', history: [] };
 function openTechWizard() {
