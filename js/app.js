@@ -3414,7 +3414,23 @@ function openCardDetail(cardId){
    TELE SATIŞ FULLSCREEN
 --------------------------*/
 let telesalesOffers = [];
-function openTelesalesArea(){
+function safeGetToken(){
+    try{ return (typeof getToken === 'function') ? getToken() : ''; }catch(e){ return ''; }
+}
+async function fetchSheetObjects(actionName){
+    const payload = { action: actionName, username: (currentUser||''), token: safeGetToken() };
+    const r = await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if(!d || d.result !== "success") throw new Error((d && d.message) ? d.message : "Veri alınamadı.");
+    // backend handleFetchData returns {data:[...]} ; other handlers may use {items:[...]}
+    return d.data || d.items || [];
+}
+
+async function openTelesalesArea(){
     const wrap = document.getElementById('telesales-fullscreen');
     if(!wrap) return;
     wrap.style.display = 'flex';
@@ -3427,12 +3443,29 @@ function openTelesalesArea(){
     if(nm) nm.innerText = currentUser || 'Kullanıcı';
     if(rl) rl.innerText = isAdminMode ? 'Admin' : 'Temsilci';
 
-    // Data teklifleri: sheet'ten geldiyse kullan, yoksa fallback
+    // Data teklifleri: önce e-tabladan çekmeyi dene, olmazsa fallback
     if(telesalesOffers.length===0){
-        telesalesOffers = Array.isArray(window.telesalesOffersFromSheet) && window.telesalesOffersFromSheet.length
-            ? window.telesalesOffersFromSheet
-            : TELESales_OFFERS_FALLBACK;
+        let loaded = [];
+        try{
+            loaded = await fetchSheetObjects("getTelesalesOffers");
+        }catch(e){
+            // sessiz fallback
+        }
+        telesalesOffers = (Array.isArray(loaded) && loaded.length)
+            ? loaded.map(o=>({
+                segment: o.segment || o.Segment || o.SEGMENT || '',
+                title: o.title || o.Başlık || o.Baslik || o.Teklif || o['Teklif Adı'] || o['Teklif Adi'] || '',
+                desc: o.desc || o.Açıklama || o.Aciklama || o.Detay || o['Detay/Not'] || o.Not || '',
+                example: o.example || o.Örnek || o.Ornek || '',
+                tips: o.tips || o.İpucu || o.Ipucu || '',
+                objection: o.objection || o.Itiraz || '',
+                reply: o.reply || o.Cevap || ''
+            }))
+            : (Array.isArray(window.telesalesOffersFromSheet) && window.telesalesOffersFromSheet.length
+                ? window.telesalesOffersFromSheet
+                : TELESales_OFFERS_FALLBACK);
     }
+
     hydrateTelesalesSegmentFilter();
     renderTelesalesDataOffers();
     renderTelesalesScripts();
@@ -3440,7 +3473,7 @@ function openTelesalesArea(){
     switchTelesalesTab('data');
 }
 
-function closeFullTelesales(){
+function closeFullTelesales(){(){
     const wrap = document.getElementById('telesales-fullscreen');
     if(wrap) wrap.style.display = 'none';
 }
