@@ -1,6 +1,6 @@
 const BAKIM_MODU = false;
 // Apps Script URL'si
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywdciHyiPCEWGu9hIyN05HkeBgwPlFgzrDZY16K08svQhTcvXhN8A_DyBrzO8SalDu/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYxTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec";
 // Oyun Değişkenleri
 let jokers = { call: 1, half: 1, double: 1 };
 let doubleChanceUsed = false;
@@ -3646,10 +3646,10 @@ function renderTechSections(){
     renderTechList('x-access-list', buckets.access);
     renderTechList('x-app-list', buckets.app);
     renderTechList('x-activation-list', buckets.activation);
-    renderTechDocs();
+    try{ renderTechDocs(); }catch(e){ console.error(e); }
 
     // Sihirbazı içeride render et
-    renderTechWizardInto('x-wizard');
+    try{ renderTechWizardInto('x-wizard'); }catch(e){ console.error(e); }
 
     // Teknik kartlar sekmesi: tüm teknik kartlar
     renderTechList('x-cards', techCards, true);
@@ -3679,23 +3679,31 @@ function renderTechDocs(){
         app: 'x-app-docs',
         activation: 'x-activation-docs'
     };
+
     Object.keys(map).forEach(key=>{
         const el = document.getElementById(map[key]);
         if(!el) return;
-        const items = (TECH_DOC_CONTENT && TECH_DOC_CONTENT[key]) ? TECH_DOC_CONTENT[key] : [];
-        if(!Array.isArray(items) || items.length===0){
-            el.innerHTML = '';
-            return;
+
+        try{
+            const items = (TECH_DOC_CONTENT && TECH_DOC_CONTENT[key]) ? TECH_DOC_CONTENT[key] : [];
+            if(!Array.isArray(items) || items.length===0){
+                el.innerHTML = '<div style="padding:12px 2px;opacity:.7">Bu başlık altında teknik döküman bulunamadı.</div>';
+                return;
+            }
+
+            el.innerHTML = items.map((it,idx)=>`
+                <div class="doc-card">
+                  <button type="button" class="doc-head" onclick="toggleDocAccordion(this)">
+                    <span class="doc-title">${escapeHtml(it.title||('İçerik ' + (idx+1)))}</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                  <div class="doc-body" style="display:none; white-space:pre-line">${escapeHtml(it.body||'')}</div>
+                </div>
+            `).join('');
+        }catch(err){
+            console.error('renderTechDocs error', err);
+            el.innerHTML = '<div style="padding:12px 2px;opacity:.7">Dökümanlar yüklenemedi. (Konsolu kontrol edin)</div>';
         }
-        el.innerHTML = items.map((it,idx)=>`
-            <div class="doc-card">
-              <button class="doc-head" onclick="toggleDocAccordion(this)">
-                <span class="doc-title">${escapeHtml(it.title||('İçerik ' + (idx+1)))}</span>
-                <i class="fas fa-chevron-down"></i>
-              </button>
-              <div class="doc-body" style="display:none; white-space:pre-line">${escapeHtml(it.body||'')}</div>
-            </div>
-        `).join('');
     });
 }
 
