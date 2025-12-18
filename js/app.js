@@ -15,6 +15,27 @@ function showGlobalError(message){
 // Apps Script URL'si
 let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbywdciHyiPCEWGu9hIyN05HkeBgwPlFgzrDZY16K08svQhTcvXhN8A_DyBrzO8SalDu/exec"; // Apps Script Web App URL
 
+// ---- API CALL helper (Menu/Yetki vs için gerekli) ----
+async function apiCall(action, payload = {}) {
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const json = await res.json();
+  if (json.result !== "success") throw new Error(json.message || json.error || "API error");
+  return json;
+}
+
+// SweetAlert2 yoksa minimal yedek (sessiz kırılma olmasın)
+if (typeof Swal === "undefined") {
+  window.Swal = { 
+    fire: (a,b,c)=>{ try{ alert((a&&a.title)||a||b||c||""); }catch(e){} },
+  };
+}
+
+
+
 // Oyun Değişkenleri
 let jokers = { call: 1, half: 1, double: 1 };
 let doubleChanceUsed = false;
