@@ -13,7 +13,7 @@ function showGlobalError(message){
 }
 
 // Apps Script URL'si
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbz6dDFHv-49h-13EwNPVCqpj-H4xjRqNpkz1JPvkixDkOkM_AUyN2cgYpH7-j9a5Tg/exec"; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbywdciHyiPCEWGu9hIyN05HkeBgwPlFgzrDZY16K08svQhTcvXhN8A_DyBrzO8SalDu/exec"; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
@@ -126,9 +126,8 @@ function loadMenuPermissions(){
 // LocAdmin panel
 function openMenuPermissions(){
   const role=getMyRole();
-  // Yetki Yönetimi: SADECE locadmin erişebilir (admin dahil hiç kimse görmez)
   if(role!=="locadmin"){
-    Swal.fire("Yetkisiz", "Bu ekran sadece Local Admin içindir.", "warning");
+    Swal.fire("Yetkisiz", "Bu ekrana erişimin yok.", "warning");
     return;
   }
   apiCall("getMenuPermissions",{}).then(res=>{
@@ -156,17 +155,41 @@ function openMenuPermissions(){
       return normMap[k] || (g.charAt(0).toUpperCase()+g.slice(1));
     });
 
+
+// Rolleri backend'den al, yoksa default liste (qusers dahil)
+let roles = (res.roles||[]).map(r=>String(r||"").trim()).filter(Boolean);
+if(!roles.length){
+  roles = ["user","admin","locadmin","qusers"];
+}
+
     const menus = (res.items||[]);
 
     const rowsHtml = menus.map(m=>{
-      const allowed = normalizeList(m.allowedGroups);
-      const enabled = !(m.enabled === false || String(m.enabled).toUpperCase()==="FALSE");
-      const cells = groups.map(g=>{
-        const checked = (allowed.length===0 || allowed.indexOf("ALL")>-1) ? true : (allowed.indexOf(g)>-1);
-        return `<td style="text-align:center">
-          <input type="checkbox" data-mk="${m.key}" data-g="${g}" ${checked?'checked':''}/>
-        </td>`;
-      }).join('');
+  const allowedGroups = normalizeList(m.allowedGroups);
+  const allowedRoles  = normalizeList(m.allowedRoles);
+  const enabled = !(m.enabled === false || String(m.enabled).toUpperCase()==="FALSE");
+
+  const groupCells = groups.map(g=>{
+    const checked = (allowedGroups.length===0 || allowedGroups.indexOf("ALL")>-1) ? true : (allowedGroups.indexOf(g)>-1);
+    return `<td style="text-align:center">
+      <input type="checkbox" data-mk="${m.key}" data-g="${g}" ${checked?'checked':''}/>
+    </td>`;
+  }).join('');
+
+  const roleCells = roles.map(r=>{
+    const checked = (allowedRoles.length===0 || allowedRoles.indexOf("ALL")>-1) ? true : (allowedRoles.indexOf(r)>-1);
+    return `<td style="text-align:center">
+      <input type="checkbox" data-mk="${m.key}" data-r="${r}" ${checked?'checked':''}/>
+    </td>`;
+  }).join('');
+
+  return `<tr>
+    <td style="font-weight:600">${escapeHtml(m.title||m.label||m.key)}</td>
+    <td style="text-align:center"><input type="checkbox" data-enabled="${m.key}" ${enabled?'checked':''}/></td>
+    ${groupCells}
+    ${roleCells}
+  </tr>`;
+}).join('');
       return `<tr>
         <td style="font-weight:600">${escapeHtml(m.title||m.label||m.key)}</td>
         <td style="text-align:center"><input type="checkbox" data-enabled="${m.key}" ${enabled?'checked':''}/></td>
@@ -175,23 +198,24 @@ function openMenuPermissions(){
     }).join('');
 
     const tableHtml = `
-      <div style="text-align:left;margin-bottom:10px;color:#444">
-        Menü/sekme bazlı “hangi grup görsün” ayarı. İşaretli olmayan gruplar menüyü görmez.
-      </div>
-      <div style="max-height:420px;overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:12px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead style="position:sticky;top:0;background:#f7f7f7;z-index:1">
-            <tr>
-              <th style="text-align:left;padding:12px">Menü</th>
-              <th style="text-align:center;padding:12px;width:90px">Aktif</th>
-              ${groups.map(g=>`<th style="text-align:center;padding:12px">${escapeHtml(g)}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-      </div>`;
+  <div style="text-align:left;margin-bottom:10px;color:#444">
+    Menü/sekme bazlı “hangi grup/rol görsün” ayarı. İşaretli olmayan görmez.
+  </div>
+  <div style="max-height:420px;overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:12px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead style="position:sticky;top:0;background:#f7f7f7;z-index:1">
+        <tr>
+          <th style="text-align:left;padding:12px">Menü</th>
+          <th style="text-align:center;padding:12px;width:90px">Aktif</th>
+          ${groups.map(g=>`<th style="text-align:center;padding:12px">${escapeHtml(g)}</th>`).join('')}
+          ${roles.map(r=>`<th style="text-align:center;padding:12px">${escapeHtml(r)}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </div>`;
 
     Swal.fire({
       title: "Yetki Yönetimi",
@@ -201,28 +225,40 @@ function openMenuPermissions(){
       confirmButtonText: "Kaydet",
       cancelButtonText: "Vazgeç",
       preConfirm: ()=>{
-        const out = {};
-        menus.forEach(m=>{ out[m.key] = { allowedGroups: [], enabled: true }; });
-        // enabled
-        document.querySelectorAll('input[type="checkbox"][data-enabled]').forEach(cb=>{
-          const k=cb.getAttribute('data-enabled');
-          if(out[k]) out[k].enabled = !!cb.checked;
-        });
-        // groups
-        document.querySelectorAll('input[type="checkbox"][data-mk]').forEach(cb=>{
-          const k=cb.getAttribute('data-mk');
-          const g=cb.getAttribute('data-g');
-          if(cb.checked && out[k]) out[k].allowedGroups.push(g);
-        });
-        // Hepsi seçiliyse "ALL" olarak yaz (daha temiz)
-        Object.keys(out).forEach(k=>{
-          const arr = out[k].allowedGroups||[];
-          if(arr.length===groups.length){
-            out[k].allowedGroups = ["ALL"];
-          }
-        });
-        return out;
-      }
+  const out = {};
+  menus.forEach(m=>{ out[m.key] = { allowedGroups: [], allowedRoles: [], enabled: true }; });
+
+  // enabled
+  document.querySelectorAll('input[type="checkbox"][data-enabled]').forEach(cb=>{
+    const k=cb.getAttribute('data-enabled');
+    if(out[k]) out[k].enabled = !!cb.checked;
+  });
+
+  // groups
+  document.querySelectorAll('input[type="checkbox"][data-mk][data-g]').forEach(cb=>{
+    const k=cb.getAttribute('data-mk');
+    const g=cb.getAttribute('data-g');
+    if(cb.checked && out[k]) out[k].allowedGroups.push(g);
+  });
+
+  // roles
+  document.querySelectorAll('input[type="checkbox"][data-mk][data-r]').forEach(cb=>{
+    const k=cb.getAttribute('data-mk');
+    const r=cb.getAttribute('data-r');
+    if(cb.checked && out[k]) out[k].allowedRoles.push(r);
+  });
+
+  // Hepsi seçiliyse "ALL" olarak yaz
+  Object.keys(out).forEach(k=>{
+    if(out[k].allowedGroups.length===groups.length){
+      out[k].allowedGroups = ["ALL"];
+    }
+    if(out[k].allowedRoles.length===roles.length){
+      out[k].allowedRoles = ["ALL"];
+    }
+  });
+  return out;
+}
     }).then(r=>{
       if(!r.isConfirmed) return;
       const payload = r.value || {};
@@ -597,8 +633,7 @@ function checkAdmin(role) {
         if(addCardDropdown) addCardDropdown.style.display = 'flex';
         if(quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
-        const perms = document.getElementById('dropdownPerms');
-            if(perms) perms.style.display = isLocAdmin ? 'flex' : 'none';
+        const perms = document.getElementById('dropdownPerms'); if(perms) perms.style.display = isLocAdmin ? 'flex' : 'none';
             quickEditDropdown.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
             quickEditDropdown.classList.remove('active');
         }
