@@ -51,7 +51,7 @@ let firstAnswerIndex = -1;
 const VALID_CATEGORIES = ['Teknik', 'İkna', 'Kampanya', 'Bilgi'];
 const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 // --- GLOBAL DEĞİŞKENLER ---
-let database = [], cardsData = [], newsData = [], todayData = [], quoteData = [], sportsData = [], salesScripts = [], quizQuestions = [], quickDecisionQuestions = [];
+let database = [], cardsData = [], newsData = [], sportsData = [], salesScripts = [], quizQuestions = [], quickDecisionQuestions = [];
 let techWizardData = {}; // Teknik Sihirbaz Verisi
 let currentUser = "";
 let isAdminMode = false;    
@@ -373,7 +373,7 @@ function checkAdmin(role) {
     const addCardDropdown = document.getElementById('dropdownAddCard');
     const quickEditDropdown = document.getElementById('dropdownQuickEdit');
     
-    isAdminMode = (role === "admin" || role === "locadmin");
+    isAdminMode = (role === "admin");
     isEditingActive = false;
     document.body.classList.remove('editing');
     
@@ -484,17 +484,7 @@ function loadContentData() {
             // Yeni eklenenleri üstte göstermek için tarihe göre (azalan) sırala
             database.sort((a,b) => parseDateTRToTS(b.date) - parseDateTRToTS(a.date));
             newsData = rawData.filter(i => i.Type.toLowerCase() === 'news').map(i => ({
-                date: formatDateToDDMMYYYY(i.Date), title: i.Title, desc: i.Text, type: i.Category, s
-            // Ana Sayfa: Bugün Neler Var? (Type=today) ve Günün Sözü (Type=quote)
-            todayData = rawData
-              .filter(i => (i.Type || '').toLowerCase() === 'today' && (i.Status || '') !== 'Pasif')
-              .map(i => ({ date: formatDateToDDMMYYYY(i.Date), title: i.Title, desc: i.Text, status: i.Status }))
-              .sort((a,b) => parseDateTRToTS(b.date) - parseDateTRToTS(a.date));
-
-            quoteData = rawData
-              .filter(i => (i.Type || '').toLowerCase() === 'quote' && (i.Status || '') !== 'Pasif')
-              .map(i => ({ title: i.Title, text: i.Text, detail: i.Detail, date: formatDateToDDMMYYYY(i.Date) }));
-tatus: i.Status
+                date: formatDateToDDMMYYYY(i.Date), title: i.Title, desc: i.Text, type: i.Category, status: i.Status
             }));
             sportsData = rawData.filter(i => i.Type.toLowerCase() === 'sport').map(i => ({
                 title: i.Title, icon: i.Icon, desc: i.Text, tip: i.Tip, detail: i.Detail, pronunciation: i.Pronunciation
@@ -3442,84 +3432,43 @@ function hideHomeScreen(){
     if (grid) grid.style.display = 'grid';
 }
 
-
 function renderHomePanels(){
-    // Admin butonlarını göster/gizle
-    const btnAddNews = document.getElementById('btnAddNewsHome');
-    const btnAddToday = document.getElementById('btnAddTodayHome');
-    const btnEditQuote = document.getElementById('btnEditQuoteHome');
-    const showAdminBtns = !!isAdminMode; // locadmin da dahil (checkAdmin içinde setleniyor)
-    if(btnAddNews) btnAddNews.style.display = showAdminBtns ? 'inline-flex' : 'none';
-    if(btnAddToday) btnAddToday.style.display = showAdminBtns ? 'inline-flex' : 'none';
-    if(btnEditQuote) btnEditQuote.style.display = showAdminBtns ? 'inline-flex' : 'none';
-
-    // 1) Duyurular (News) - son 3 aktif duyuru
-    const annEl = document.getElementById('home-announcements');
-    if(annEl){
-        const latest = (newsData || []).filter(n => (n.status || '') !== 'Pasif').slice(0,3);
-        if(latest.length===0){
-            annEl.innerHTML = 'Henüz duyuru yok.';
-        }else{
-            annEl.innerHTML = latest.map(n=>`
-                <div class="home-item">
-                  <div class="meta">${escapeHtml(n.date||'')}</div>
-                  <div class="title">${escapeHtml(n.title||'')}</div>
-                  <div class="desc">${escapeHtml((n.desc||'')).slice(0,180)}${(n.desc||'').length>180?'...':''}</div>
-                  ${isAdminMode && isEditingActive ? `
-                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                      <button class="mini-btn" onclick="openNews()">Düzenle</button>
-                      <button class="mini-btn danger" onclick="homeDisableByTitle('news', '${escapeHtml((n.title||'').replace(/'/g,'\\\''))}')">Pasifleştir</button>
-                    </div>` : ``}
-                </div>
-            `).join('');
-        }
-    }
-
-    // 2) Bugün Neler Var? (todayData)
+    // Bugün kutusu: en güncel 3 duyuru + yaklaşan yayın akışı (varsa)
     const todayEl = document.getElementById('home-today');
     if(todayEl){
-        const items = (todayData || []).slice(0,10);
-        if(items.length===0){
-            todayEl.innerHTML = 'Henüz içerik yok.';
+        const latest = (newsData || []).slice(0,3);
+        if(latest.length===0){
+            todayEl.innerHTML = 'Henüz duyuru yok.';
         }else{
-            todayEl.innerHTML = items.map(item=>`
-                <div class="home-item">
-                  <div class="meta">${escapeHtml(item.date||'')}</div>
-                  <div class="title">${escapeHtml(item.title||'')}</div>
-                  <div class="desc">${escapeHtml((item.desc||'')).slice(0,220)}${(item.desc||'').length>220?'...':''}</div>
-                  ${isAdminMode && isEditingActive ? `
-                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                      <button class="mini-btn" onclick="homeEditToday('${escapeHtml((item.title||'').replace(/'/g,'\\\''))}', '${escapeHtml((item.desc||'').replace(/'/g,'\\\''))}')">Düzenle</button>
-                      <button class="mini-btn danger" onclick="homeDisableByTitle('today', '${escapeHtml((item.title||'').replace(/'/g,'\\\''))}')">Pasifleştir</button>
-                    </div>` : ``}
+            todayEl.innerHTML = latest.map(n=>`
+                <div style="padding:10px;border:1px solid #eef2f7;border-radius:10px;margin-bottom:10px;background:#fff">
+                  <div style="font-size:.78rem;color:#8a8a8a;font-weight:800">${escapeHtml(n.date||'')}</div>
+                  <div style="font-weight:900;color:#0e1b42;margin-top:2px">${escapeHtml(n.title||'')}</div>
+                  <div style="color:#555;margin-top:6px;line-height:1.45">${escapeHtml((n.desc||'')).slice(0,160)}${(n.desc||'').length>160?'...':''}</div>
                 </div>
             `).join('');
         }
     }
 
-    // 3) Günün Sözü (quote)
-    const qEl = document.getElementById('home-quote');
-    const qAuthorEl = document.getElementById('home-quote-author');
-    if(qEl){
-        const q = (quoteData && quoteData.length) ? quoteData[0] : null;
-        if(!q || !(q.text||'').trim()){
-            qEl.innerHTML = 'Henüz günün sözü eklenmedi.';
-            if(qAuthorEl) qAuthorEl.style.display = 'none';
+    // Favoriler kutusu: favori kartların ilk 6'sı
+    const favEl = document.getElementById('home-favs');
+    if(favEl){
+        const favs = (cardsData||[]).filter(c=>isFavorite(c.id)).slice(0,6);
+        if(favs.length===0){
+            favEl.innerHTML = 'Henüz favori eklemedin. Kartlarda ⭐ simgesine basarak ekleyebilirsin.';
         }else{
-            qEl.innerHTML = escapeHtml(q.text);
-            const author = (q.detail||'').trim();
-            if(qAuthorEl){
-                if(author){
-                    qAuthorEl.style.display = 'block';
-                    qAuthorEl.innerHTML = '— ' + escapeHtml(author);
-                }else{
-                    qAuthorEl.style.display = 'none';
-                }
-            }
+            favEl.innerHTML = favs.map(c=>`
+                <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid #eef2f7;border-radius:10px;padding:10px;margin-bottom:10px">
+                  <div style="font-weight:900;color:#0e1b42;min-width:0;flex:1">
+                    <div style="font-size:.75rem;color:#8a8a8a;font-weight:900">${escapeHtml(c.category||'')}</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.title||'')}</div>
+                  </div>
+                  <button class="btn btn-copy" style="white-space:nowrap" onclick="openCardDetail('${escapeForJsString(c.id)}')">Aç</button>
+                </div>
+            `).join('');
         }
     }
 }
-
 
 // Kart detayını doğrudan açmak için küçük bir yardımcı
 function openCardDetail(cardId){
@@ -4111,236 +4060,3 @@ window.switchTechTab = async function(tab){
     console.error(e);
   }
 };
-
-// =====================
-// HOME - Edit/Ekle
-// =====================
-function homeAddToday(){
-  if(!isAdminMode) return;
-  Swal.fire({
-    title: 'Bugün Neler Var? - Ekle',
-    html: `
-      <input id="homeTodayTitle" class="swal2-input" placeholder="Başlık">
-      <textarea id="homeTodayDesc" class="swal2-textarea" placeholder="Açıklama"></textarea>
-    `,
-    focusConfirm: false,
-    preConfirm: () => {
-      const title = (document.getElementById('homeTodayTitle').value || '').trim();
-      const desc = (document.getElementById('homeTodayDesc').value || '').trim();
-      if(!title) { Swal.showValidationMessage('Başlık zorunlu'); return false; }
-      return { title, desc };
-    },
-    showCancelButton: true,
-    confirmButtonText: 'Kaydet',
-    cancelButtonText: 'İptal'
-  }).then(res=>{
-    if(!res.isConfirmed) return;
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2,'0');
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const yyyy = now.getFullYear();
-    const dateStr = `${dd}.${mm}.${yyyy}`;
-    fetch(SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        action:'addCard',
-        username: currentUser,
-        token: getToken(),
-        cardType:'today',
-        category:'home',
-        title: res.value.title,
-        text: res.value.desc,
-        script:'',
-        code:'',
-        link:'',
-        date: dateStr,
-        tip:'',
-        detail:'',
-        pronunciation:'',
-        quizOptions:'',
-        quizAnswer:''
-      })
-    }).then(r=>r.json()).then(d=>{
-      if(d.result==='success'){ Swal.fire({icon:'success', title:'Kaydedildi', timer:1200, showConfirmButton:false}); setTimeout(loadContentData, 900); }
-      else Swal.fire('Hata', d.message || 'Kaydedilemedi', 'error');
-    }).catch(e=>Swal.fire('Hata','Sunucu hatası: '+e,'error'));
-  });
-}
-
-function homeEditToday(title, desc){
-  if(!isAdminMode) return;
-  Swal.fire({
-    title:'Bugün Neler Var? - Düzenle',
-    html: `
-      <input id="homeTodayTitle" class="swal2-input" placeholder="Başlık" value="${escapeHtml(title||'')}">
-      <textarea id="homeTodayDesc" class="swal2-textarea" placeholder="Açıklama">${escapeHtml(desc||'')}</textarea>
-      <div style="font-size:.8rem;color:#888;margin-top:8px">Not: Başlık değiştirirsen yeni kayıt gibi algılanır. En iyisi başlığı sabit bırak.</div>
-    `,
-    focusConfirm:false,
-    preConfirm: ()=>{
-      const newTitle=(document.getElementById('homeTodayTitle').value||'').trim();
-      const newDesc=(document.getElementById('homeTodayDesc').value||'').trim();
-      if(!newTitle){ Swal.showValidationMessage('Başlık zorunlu'); return false; }
-      return { newTitle, newDesc };
-    },
-    showCancelButton:true,
-    confirmButtonText:'Güncelle',
-    cancelButtonText:'İptal'
-  }).then(res=>{
-    if(!res.isConfirmed) return;
-
-    // Text güncelle
-    updateContentByTitle(title, 'Text', res.value.newDesc, () => {
-      // Başlık değiştiyse ayrıca Title güncelle
-      if(res.value.newTitle && res.value.newTitle !== title){
-        updateContentByTitle(title, 'Title', res.value.newTitle, () => loadContentData());
-      }else{
-        loadContentData();
-      }
-    });
-  });
-}
-
-function homeAddNews(){
-  if(!isAdminMode) return;
-  Swal.fire({
-    title: 'Duyuru Ekle',
-    html: `
-      <input id="homeNewsTitle" class="swal2-input" placeholder="Başlık">
-      <textarea id="homeNewsDesc" class="swal2-textarea" placeholder="Açıklama"></textarea>
-    `,
-    focusConfirm:false,
-    preConfirm: ()=>{
-      const title=(document.getElementById('homeNewsTitle').value||'').trim();
-      const desc=(document.getElementById('homeNewsDesc').value||'').trim();
-      if(!title){ Swal.showValidationMessage('Başlık zorunlu'); return false; }
-      return { title, desc };
-    },
-    showCancelButton:true,
-    confirmButtonText:'Kaydet',
-    cancelButtonText:'İptal'
-  }).then(res=>{
-    if(!res.isConfirmed) return;
-    const now=new Date();
-    const dd=String(now.getDate()).padStart(2,'0');
-    const mm=String(now.getMonth()+1).padStart(2,'0');
-    const yyyy=now.getFullYear();
-    const dateStr=`${dd}.${mm}.${yyyy}`;
-    fetch(SCRIPT_URL,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        action:'addCard',
-        username: currentUser,
-        token: getToken(),
-        cardType:'news',
-        category:'Genel',
-        title: res.value.title,
-        text: res.value.desc,
-        script:'',
-        code:'',
-        link:'',
-        date: dateStr,
-        tip:'',
-        detail:'',
-        pronunciation:'',
-        quizOptions:'',
-        quizAnswer:''
-      })
-    }).then(r=>r.json()).then(d=>{
-      if(d.result==='success'){ Swal.fire({icon:'success', title:'Kaydedildi', timer:1200, showConfirmButton:false}); setTimeout(loadContentData, 900); }
-      else Swal.fire('Hata', d.message || 'Kaydedilemedi', 'error');
-    }).catch(e=>Swal.fire('Hata','Sunucu hatası: '+e,'error'));
-  });
-}
-
-function homeEditQuote(){
-  if(!isAdminMode) return;
-  const q = (quoteData && quoteData.length) ? quoteData[0] : { text:'', detail:'' };
-  Swal.fire({
-    title:'Günün Sözü',
-    html: `
-      <textarea id="homeQuoteText" class="swal2-textarea" placeholder="Söz">${escapeHtml((q.text||''))}</textarea>
-      <input id="homeQuoteAuthor" class="swal2-input" placeholder="Söyleyen (opsiyonel)" value="${escapeHtml((q.detail||''))}">
-    `,
-    focusConfirm:false,
-    preConfirm: ()=>{
-      const text=(document.getElementById('homeQuoteText').value||'').trim();
-      const author=(document.getElementById('homeQuoteAuthor').value||'').trim();
-      if(!text){ Swal.showValidationMessage('Söz boş olamaz'); return false; }
-      return { text, author };
-    },
-    showCancelButton:true,
-    confirmButtonText:'Kaydet',
-    cancelButtonText:'İptal'
-  }).then(res=>{
-    if(!res.isConfirmed) return;
-    // Quote kaydı: Title sabit -> "GUNUN_SOZU"
-    // Önce varsa update, yoksa add
-    const exists = (quoteData && quoteData.length);
-    if(exists){
-      updateContentByTitle(quoteData[0].title, 'Text', res.value.text, () => {
-        updateContentByTitle(quoteData[0].title, 'Detail', res.value.author, () => loadContentData());
-      });
-    }else{
-      const now=new Date();
-      const dd=String(now.getDate()).padStart(2,'0');
-      const mm=String(now.getMonth()+1).padStart(2,'0');
-      const yyyy=now.getFullYear();
-      const dateStr=`${dd}.${mm}.${yyyy}`;
-      fetch(SCRIPT_URL,{
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action:'addCard',
-          username: currentUser,
-          token: getToken(),
-          cardType:'quote',
-          category:'home',
-          title:'GUNUN_SOZU',
-          text: res.value.text,
-          script:'',
-          code:'',
-          link:'',
-          date: dateStr,
-          tip:'',
-          detail: res.value.author,
-          pronunciation:'',
-          quizOptions:'',
-          quizAnswer:''
-        })
-      }).then(r=>r.json()).then(d=>{
-        if(d.result==='success'){ Swal.fire({icon:'success', title:'Kaydedildi', timer:1200, showConfirmButton:false}); setTimeout(loadContentData, 900); }
-        else Swal.fire('Hata', d.message || 'Kaydedilemedi', 'error');
-      }).catch(e=>Swal.fire('Hata','Sunucu hatası: '+e,'error'));
-    }
-  });
-}
-
-function homeDisableByTitle(type, title){
-  if(!isAdminMode) return;
-  Swal.fire({
-    icon:'warning',
-    title:'Pasifleştirilsin mi?',
-    text:'Bu içerik duyurularda görünmez (Sheet tarafında Status=Pasif).',
-    showCancelButton:true,
-    confirmButtonText:'Evet',
-    cancelButtonText:'İptal'
-  }).then(res=>{
-    if(!res.isConfirmed) return;
-    updateContentByTitle(title, 'Status', 'Pasif', () => loadContentData());
-  });
-}
-
-// Sheet update helper (Title üzerinden)
-function updateContentByTitle(searchKey, column, value, cb){
-  fetch(SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({ action:'updateContent', username: currentUser, token: getToken(), searchKey, column, value })
-  }).then(r=>r.json()).then(d=>{
-    if(d.result==='success'){ if(cb) cb(); }
-    else Swal.fire('Hata', d.message || 'Güncellenemedi', 'error');
-  }).catch(e=>Swal.fire('Hata','Sunucu hatası: '+e,'error'));
-}
