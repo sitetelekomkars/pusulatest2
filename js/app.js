@@ -81,17 +81,11 @@ function getMyRole(){ return normalizeRole(localStorage.getItem("sSportRole")||"
 function isAllowedByPerm(perm){
   if(!perm) return true;
   if(perm.enabled === false) return false;
-
   const role=getMyRole(), grp=getMyGroup();
   const roles=perm.allowedRoles||[];
   let groups=perm.allowedGroups||[];
-
-  // NONE varsa kimse görmesin
-  if(groups.some(g => String(g||"").trim().toUpperCase() === "NONE")) return false;
-
-  // ALL varsa grup filtresi yok
-  if(groups.some(g => String(g||"").trim().toUpperCase() === "ALL")) groups = [];
-
+  // "ALL" varsa herkese açık kabul et
+  if(groups.indexOf("ALL")>-1) groups=[];
   if(roles.length && roles.indexOf(role)===-1) return false;
   if(groups.length && groups.indexOf(grp)===-1) return false;
   return true;
@@ -118,15 +112,10 @@ function loadMenuPermissions(){
     if(res && res.result==="success"){
       menuPermissions = {};
       (res.items||[]).forEach(it=>{
-        const key = it.key || it.MenuKey || it.menuKey;
-        const allowedGroupsRaw = (it.allowedGroups ?? it.AllowedGroups ?? it.allowed_groups ?? it.groups ?? "");
-        const enabledRaw = (it.enabled ?? it.Enabled ?? it.isEnabled ?? "TRUE");
-        const allowedRolesRaw = (it.allowedRoles ?? it.AllowedRoles ?? it.allowed_roles ?? "");
-
-        menuPermissions[key] = {
-          allowedGroups: normalizeList(allowedGroupsRaw).map(x=>String(x).trim()),
-          enabled: (enabledRaw === false || String(enabledRaw).toUpperCase()==="FALSE") ? false : true,
-          allowedRoles: normalizeList(allowedRolesRaw).map(x=>String(x).trim())
+        menuPermissions[it.key] = {
+          allowedGroups: normalizeList(it.allowedGroups),
+          enabled: (it.enabled === false || String(it.enabled).toUpperCase()==="FALSE") ? false : true,
+          allowedRoles: normalizeList(it.allowedRoles) // backward-compat if still present
         };
       });
       applyMenuPermissions();
@@ -172,9 +161,7 @@ function openMenuPermissions(){
       const allowed = normalizeList(m.allowedGroups);
       const enabled = !(m.enabled === false || String(m.enabled).toUpperCase()==="FALSE");
       const cells = groups.map(g=>{
-        const hasNone = allowed.some(x=>String(x||"").trim().toUpperCase()==="NONE");
-        const hasAll = allowed.some(x=>String(x||"").trim().toUpperCase()==="ALL");
-        const checked = hasNone ? false : (hasAll ? true : (allowed.indexOf(g)>-1));
+        const checked = (allowed.length===0 || allowed.indexOf("ALL")>-1) ? true : (allowed.indexOf(g)>-1);
         return `<td style="text-align:center">
           <input type="checkbox" data-mk="${m.key}" data-g="${g}" ${checked?'checked':''}/>
         </td>`;
@@ -226,13 +213,11 @@ function openMenuPermissions(){
           const g=cb.getAttribute('data-g');
           if(cb.checked && out[k]) out[k].allowedGroups.push(g);
         });
-        // Hepsi seçiliyse "ALL", hiçbiri seçili değilse "NONE" olarak yaz
+        // Hepsi seçiliyse "ALL" olarak yaz (daha temiz)
         Object.keys(out).forEach(k=>{
           const arr = out[k].allowedGroups||[];
           if(arr.length===groups.length){
             out[k].allowedGroups = ["ALL"];
-          } else if(arr.length===0){
-            out[k].allowedGroups = ["NONE"];
           }
         });
         return out;
@@ -482,9 +467,6 @@ function checkSession() {
         try{ if(savedGroup){ const el=document.getElementById("t-side-role"); if(el) el.textContent=savedGroup; const el2=document.getElementById("tech-side-role"); if(el2) el2.textContent=savedGroup; } }catch(e){}
         startSessionTimer();
         
-        // Menü yetkilerini ve ana sayfa bloklarını session'dan girişte de yükle
-        try{ loadMenuPermissions(); }catch(e){}
-        try{ loadHomeBlocks(); }catch(e){}
         if (BAKIM_MODU) {
             document.getElementById("maintenance-screen").style.display = "flex";
         } else {
@@ -493,8 +475,78 @@ function checkSession() {
             loadWizardData();
             loadTechWizardData();
             
-            // qusers özel kilitleme kaldırıldı; MenuPermissions üzerinden yönetilecek
-            // qusers özel kilitleme kaldırıldı
+            // Eğer qusers rolündeyse, ana içeriği gizle ve kalite modülünü aç
+            if (savedRole === 'qusers') {
+                const grid = document.getElementById('cardGrid'); if (grid) grid.style.display = 'none';
+                const controls = document.querySelector('.control-wrapper'); if (controls) controls.style.display = 'none';
+                const ticker = document.querySelector('.news-ticker-box'); if (ticker) ticker.style.display = 'none';
+                
+                openQualityArea(); // Yeni Full Screen Modül
+            }
+        }
+    }
+}
+function enterBas(e) { if (e.key === "Enter") girisYap(); }
+function girisYap() {
+    const uName = document.getElementById("usernameInput").value.trim();
+    const uPass = document.getElementById("passInput").value.trim();
+    const loadingMsg = document.getElementById("loading-msg");
+    const errorMsg = document.getElementById("error-msg");
+    if(!uName || !uPass) { errorMsg.innerText = "Lütfen bilgileri giriniz."; errorMsg.style.display = "block"; return; }
+    
+    loadingMsg.style.display = "block";
+    loadingMsg.innerText = "Doğrulanıyor...";
+    errorMsg.style.display = "none";
+    document.querySelector('.login-btn').disabled = true;
+    
+    const hashedPass = CryptoJS.SHA256(uPass).toString();
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "login", username: uName, password: hashedPass })
+    }).then(response => response.json())
+    .then(data => {
+        loadingMsg.style.display = "none";
+        document.querySelector('.login-btn').disabled = false;
+        
+        if (data.result === "success") {
+            currentUser = data.username;
+            localStorage.setItem("sSportUser", currentUser);
+            localStorage.setItem("sSportToken", data.token);
+            localStorage.setItem("sSportRole", data.role);
+            if (data.group) localStorage.setItem("sSportGroup", data.group);
+            
+            const savedRole = data.role;
+            if (data.forceChange === true) {
+                Swal.fire({
+                    icon: 'warning', title: ' ⚠️  Güvenlik Uyarısı',
+                    text: 'İlk girişiniz. Lütfen şifrenizi değiştirin.',
+                    allowOutsideClick: false, allowEscapeKey: false, confirmButtonText: 'Şifremi Değiştir'
+                }).then(() => { changePasswordPopup(true); });
+            } else {
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("user-display").innerText = currentUser;
+                const savedGroup = data.group || localStorage.getItem('sSportGroup') || '';
+                checkAdmin(savedRole);
+                startSessionTimer();
+                // Menü yetkilerini ve ana sayfa bloklarını login sonrası yükle
+                try{ loadMenuPermissions(); }catch(e){}
+                try{ loadHomeBlocks(); }catch(e){}
+                
+                if (BAKIM_MODU) {
+                    document.getElementById("maintenance-screen").style.display = "flex";
+                } else {
+                    document.getElementById("main-app").style.display = "block";
+                    loadContentData();
+                    loadWizardData();
+                    loadTechWizardData();
+                    
+                    if (savedRole === 'qusers') { 
+                        const grid = document.getElementById('cardGrid'); if (grid) grid.style.display = 'none';
+                        const controls = document.querySelector('.control-wrapper'); if (controls) controls.style.display = 'none';
+                        const ticker = document.querySelector('.news-ticker-box'); if (ticker) ticker.style.display = 'none';
+                        openQualityArea();
+                    }
                 }
             }
         } else {
@@ -517,7 +569,7 @@ function checkAdmin(role) {
     isEditingActive = false;
     document.body.classList.remove('editing');
     
-    const isQualityUser = false; // qusers kısıtı kaldırıldı
+    const isQualityUser = (role === 'qusers');
     const filterButtons = document.querySelectorAll('.filter-btn:not(.btn-fav)'); 
     
     if (isQualityUser) {
