@@ -425,6 +425,8 @@ function logout() {
     
     // Fullscreen'i kapat
     document.getElementById('quality-fullscreen').style.display = 'none';
+    try{ document.getElementById('tech-fullscreen').style.display='none'; }catch(e){}
+    try{ document.getElementById('telesales-fullscreen').style.display='none'; }catch(e){}
 }
 function startSessionTimer() {
     if (sessionTimeout) clearTimeout(sessionTimeout);
@@ -1201,13 +1203,8 @@ function showSportDetail(index) {
     });
 }
 function openSales() {
-    document.getElementById('sales-modal').style.display = 'flex';
-    const c = document.getElementById('sales-grid');
-    c.innerHTML = '';
-    salesScripts.forEach((s, index) => {
-        let editBtn = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" style="top:10px; right:40px; z-index:50;" onclick="event.stopPropagation(); editSales('${escapeForJsString(s.title)}')"></i>` : '';
-        c.innerHTML += `<div class="sales-item" id="sales-${index}" onclick="toggleSales('${index}')">${editBtn}<div class="sales-header"><span class="sales-title">${s.title}</span><i class="fas fa-chevron-down" id="icon-${index}" style="color:#10b981;"></i></div><div class="sales-text">${(s.text || '').replace(/\n/g,'<br>')}<div style="text-align:right; margin-top:15px;"><button class="btn btn-copy" onclick="event.stopPropagation(); copyText('${escapeForJsString(s.text || '')}')"><i class="fas fa-copy"></i> Kopyala</button></div></div></div>`;
-    });
+    // TeleSatış artık tam ekran modül
+    openTelesalesArea();
 }
 function toggleSales(index) {
     const item = document.getElementById(`sales-${index}`);
@@ -1865,11 +1862,8 @@ function renderStep(k){
 // --- TECH WIZARD ---
 const twState = { currentStep: 'start', history: [] };
 function openTechWizard() {
-    document.getElementById('tech-wizard-modal').style.display = 'flex';
-    if (Object.keys(techWizardData).length === 0) {
-        Swal.fire({ title: 'Veriler Yükleniyor...', didOpen: () => Swal.showLoading() });
-        loadTechWizardData().then(() => { Swal.close(); twResetWizard(); });
-    } else { twRenderStep(); }
+    // Teknik Sihirbaz artık Teknik (tam ekran) içinde
+    openTechArea('wizard');
 }
 function twRenderStep() {
     const contentDiv = document.getElementById('tech-wizard-content');
