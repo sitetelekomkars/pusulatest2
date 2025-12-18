@@ -1,17 +1,17 @@
 <!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S Sport Plus - Pusula</title><link rel="stylesheet" href="css/style.css"><link rel="icon" type="image/png" href="favicon.png"><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script></head><body><div id="login-screen"><div class="login-card"><img src="favicon.png" alt="Logo" class="login-logo-img"><h2 style="color:#fff;font-weight:300;margin-top:10px">S Sport Plus<strong style="color:#fabb00">Pusula</strong></h2><p style="opacity:.6;font-size:.9rem;margin-bottom:20px">Personel Girişi</p><input type="text" id="usernameInput" class="login-input" placeholder="Kullanıcı Adı"> <input type="password" id="passInput" class="login-input" placeholder="Şifre" onkeyup="enterBas(event)"><button class="login-btn" onclick="girisYap()">Giriş Yap</button><div id="loading-msg" class="loading-text">Bağlanıyor...</div><p id="error-msg" style="color:#ef5350;display:none;margin-top:10px;font-size:.9rem">Hatalı Kullanıcı Adı veya Şifre!</p></div></div><div id="maintenance-screen"><div class="maintenance-content" style="text-align:center;color:#fff"><span style="font-size:4rem">👨 ‍ 🏫</span><h1>Sistem Mola Verdi!</h1><p>Bakım çalışması sürüyor... 🚀</p></div></div><div id="main-app"><div class="header"><div class="header-content-limit"><div class="header-top"><div class="brand-area"><img src="favicon.png" alt="S Sport Logo" class="brand-img"><div class="brand-text"><span class="main-text">S Sport Plus</span><span class="sub-text">Temsilci Pusulası</span></div></div><div class="header-controls"><div class="user-menu-wrapper"><button id="adminBtn" class="user-btn" onclick="toggleUserDropdown()"><div class="user-avatar"><i class="fas fa-user"></i></div><span id="user-display">Misafir</span><i class="fas fa-chevron-down" id="user-menu-arrow" style="font-size:.7rem;opacity:.5;transition:.3s"></i></button><div id="userDropdown" class="dropdown-menu"><div class="dropdown-header"><span style="font-size:.8rem;color:#999">Hesap İşlemleri</span></div><a href="javascript:void(0)" class="dropdown-item" onclick="changePasswordPopup()"><i class="fas fa-key"></i>Şifre Değiştir</a><a href="javascript:void(0)" class="dropdown-item" id="dropdownAddCard" style="display:none" onclick="addNewCardPopup()"><i class="fas fa-plus" style="color:var(--success)"></i>İçerik Ekle</a><a href="javascript:void(0)" class="dropdown-item" id="dropdownQuickEdit" style="display:none" onclick="toggleEditMode()"><i class="fas fa-pen" style="color:var(--secondary)"></i>Düzenlemeyi Aç</a><a href="javascript:void(0)" class="dropdown-item" id="dropdownPerms" style="display:none" onclick="openMenuPermissions()"><i class="fas fa-shield-halved" style="color:var(--secondary)"></i>Yetki Yönetimi</a><div class="dropdown-divider"></div><a href="javascript:void(0)" class="dropdown-item logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i>Çıkış Yap</a></div></div></div></div><div class="control-wrapper"><div class="search-container"><i class="fas fa-search search-icon"></i><input type="text" id="searchInput" placeholder="İçeriklerde hızlı ara..." onkeyup="filterContent()"></div><div class="filter-container">
 <button class="filter-btn btn-fav" onclick='filterCategory(this,"fav")'><i class="fas fa-star"></i></button>
-<button class="filter-btn btn-home active" onclick='filterCategory(this,"home")'><i class="fas fa-house"></i>Ana Sayfa</button><button class="filter-btn link-btn" onclick="openTechArea('broadcast')"><i class="fas fa-wrench"></i>Teknik</button>
-<button class="filter-btn" onclick='filterCategory(this,"İkna")'><i class="fas fa-hand-holding-dollar"></i>İkna</button>
-<button class="filter-btn" onclick='filterCategory(this,"Kampanya")'><i class="fas fa-gift"></i>Kampanya</button>
-<button class="filter-btn" onclick='filterCategory(this,"Bilgi")'><i class="fas fa-info-circle"></i>Bilgi</button>
+<button class="filter-btn btn-home active" data-menu-key="home" onclick='filterCategory(this,"home")'><i class="fas fa-house"></i>Ana Sayfa</button><button class="filter-btn link-btn" data-menu-key="tech" onclick="openTechArea('broadcast')"><i class="fas fa-wrench"></i>Teknik</button>
+<button class="filter-btn" data-menu-key="persuasion" onclick='filterCategory(this,"İkna")'><i class="fas fa-hand-holding-dollar"></i>İkna</button>
+<button class="filter-btn" data-menu-key="campaign" onclick='filterCategory(this,"Kampanya")'><i class="fas fa-gift"></i>Kampanya</button>
+<button class="filter-btn" data-menu-key="info" onclick='filterCategory(this,"Bilgi")'><i class="fas fa-info-circle"></i>Bilgi</button>
 <div class="divider"></div>
-<button class="filter-btn link-btn" onclick="openBroadcastFlow()"><i class="fas fa-calendar-alt"></i>Yayın Akışı</button>
-<button class="filter-btn link-btn" onclick="openGuide()"><i class="fas fa-book"></i>Spor Rehberi</button>
-<button class="filter-btn link-btn" onclick="openWizard()"><i class="fas fa-robot"></i>İade Asistanı</button>
+<button class="filter-btn link-btn" data-menu-key="broadcast" onclick="openBroadcastFlow()"><i class="fas fa-calendar-alt"></i>Yayın Akışı</button>
+<button class="filter-btn link-btn" data-menu-key="guide" onclick="openGuide()"><i class="fas fa-book"></i>Spor Rehberi</button>
+<button class="filter-btn link-btn" data-menu-key="return" onclick="openWizard()"><i class="fas fa-robot"></i>İade Asistanı</button>
 
-<button class="filter-btn link-btn" onclick="openTelesalesArea()"><i class="fas fa-headset"></i>TeleSatış</button>
-<button class="filter-btn link-btn" onclick="openGameHub()"><i class="fas fa-futbol"></i>Oyun</button>
-<button class="filter-btn link-btn" onclick="openQualityArea()"><i class="fas fa-chart-pie"></i>Kalite</button>
+<button class="filter-btn link-btn" data-menu-key="telesales" onclick="openTelesalesArea()"><i class="fas fa-headset"></i>TeleSatış</button>
+<button class="filter-btn link-btn" data-menu-key="game" onclick="openGameHub()"><i class="fas fa-futbol"></i>Oyun</button>
+<button class="filter-btn link-btn" data-menu-key="quality" onclick="openQualityArea()"><i class="fas fa-chart-pie"></i>Kalite</button>
 </div></div></div></div><div class="container"><div id="home-screen" class="home-screen" style="display:none">
   <div class="home-hero">
     <div class="home-hero-left">
@@ -58,10 +58,10 @@
         <div class="home-card-title"><i class="fas fa-bolt"></i> Hızlı Kısayollar</div>
       </div>
       <div class="home-shortcuts">
-        <button class="home-chip" onclick="openTechArea('broadcast')"><i class="fas fa-wrench"></i> Teknik</button>
-        <button class="home-chip" onclick="openTelesalesArea()"><i class="fas fa-headset"></i> TeleSatış</button>
-        <button class="home-chip" onclick="openWizard()"><i class="fas fa-robot"></i> İade Asistanı</button>
-        <button class="home-chip" onclick="openGameHub()"><i class="fas fa-futbol"></i> Oyun</button>
+        <button class="home-chip" data-shortcut-key="tech" onclick="openTechArea('broadcast')"><i class="fas fa-wrench"></i> Teknik</button>
+        <button class="home-chip" data-shortcut-key="telesales" onclick="openTelesalesArea()"><i class="fas fa-headset"></i> TeleSatış</button>
+        <button class="home-chip" data-shortcut-key="return" onclick="openWizard()"><i class="fas fa-robot"></i> İade Asistanı</button>
+        <button class="home-chip" data-shortcut-key="game" onclick="openGameHub()"><i class="fas fa-futbol"></i> Oyun</button>
       </div>
     </div>
   </div>
