@@ -3643,6 +3643,91 @@ async function editEvaluation(targetCallId) {
 const TELESales_OFFERS_FALLBACK = [{"offer": "YILLIK - 1299 TL", "segment": "WİNBACK", "description": "Kullanıcı daha önce aylık ya da yıllık herhangi bir paket kullanmış, ardından paket sonlanmış ve şu anda aktif paketi olmayan kullanıcıları aradığımız bir data", "note": "Kullanıcının izleme geçmişi olabilir."}, {"offer": "AYLIK  - 6 AY 109 TL", "segment": "WİNBACK", "description": "Kullanıcı daha önce aylık ya da yıllık herhangi bir paket kullanmış, ardından paket sonlanmış ve şu anda aktif paketi olmayan kullanıcıları aradığımız bir data", "note": "Kullanıcının izleme geçmişi olabilir."}, {"offer": "YILLIK - 1399 TL", "segment": "CANCELLİNG", "description": "Aboneliğinde iptal talebinde bulunmuş, paket süresi bitimine kadar erişime devam eden, geri kazanım için aradığımız bir data", "note": "Kullanıcının izleme geçmişi olabilir. İndirim oranı yüksek + Kullanıcının bir iptal nedeni olabilir"}, {"offer": "AYLIK  - 6 AY 119 TL", "segment": "CANCELLİNG", "description": "Aboneliğinde iptal talebinde bulunmuş, paket süresi bitimine kadar erişime devam eden, geri kazanım için aradığımız bir data", "note": "Kullanıcının izleme geçmişi olabilir. İndirim oranı yüksek + Kullanıcının bir iptal nedeni olabilir"}, {"offer": "YILLIK - 1499 TL", "segment": "ACTİVE GRACE", "description": "Paket yenileme sürecine giren fakat ücret alınamadığı için paketi yenilenemeyen kullanıcıları aradığımız bir data", "note": "Paket yenileme sürecinden bir ödeme sorunu oluştuğunu bu nedenle aboneliğinin yenilenmediğini, kullanıcıya hem bu sorunu çözmek hem de indirimli fiyatlar üzerinden yardımcı olmak +İçerik"}, {"offer": "AYLIK  - 6 AY 109 TL", "segment": "ACTİVE GRACE", "description": "Paket yenileme sürecine giren fakat ücret alınamadığı için paketi yenilenemeyen kullanıcıları aradığımız bir data", "note": "Paket yenileme sürecinden bir ödeme sorunu oluştuğunu bu nedenle aboneliğinin yenilenmediğini, kullanıcıya hem bu sorunu çözmek hem de indirimli fiyatlar üzerinden yardımcı olmak +İçerik"}, {"offer": "YILLIK - 1499 TL", "segment": "INBOUND", "description": "Inbound üzerinden gelen satın alma talepleri ya da satışa ikna edilen kullanıcılar için sunulan teklif", "note": ""}, {"offer": "AYLIK - 6 AY 139,5 TL", "segment": "INBOUND", "description": "Inbound üzerinden gelen satın alma talepleri ya da satışa ikna edilen kullanıcılar için sunulan teklif", "note": ""}];
 const SPORTS_RIGHTS_FALLBACK = [{"item": "Euroleague maçları ve stüdyo programları", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "Bundesliga", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "Bundesliga 2", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "İspanya LaLiga önemli maçları", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "LaLiga 2 önemli maçları", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "İtalya Serie A önemli maçları", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "Portekiz Liga Portugal önemli maçları", "period": "2025 - 2026", "note": ""}, {"item": "Suudi Arabistan Pro Lig önemli maçları", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "Hollanda Ligi", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "İskoçya Premiership önemli maçları", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "NCAA Amerikan Futbol", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "NCAA Basketbol", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "NFL", "period": "2025 - 2026", "note": ""}, {"item": "NBA", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "EuroCup", "period": "2025-2026 / 2026- 2027 / 2027-2028 / 2028-2029", "note": ""}, {"item": "Yunanistan Basketbol Ligi önemli maçları", "period": "2025 - 2026 Sezon belirsiz", "note": ""}, {"item": "NCAA", "period": "2025 - 2026 / 2026 - 2027", "note": ""}, {"item": "Libertadores Kupası", "period": "2027, 2028, 2029, 2030 (4 seasons)", "note": ""}, {"item": "Copa Sudamericana", "period": "2027, 2028, 2029, 2030 (4 seasons)", "note": ""}, {"item": "WRC", "period": "2025", "note": "2026 da alınabilir net değil"}, {"item": "Nascar", "period": "2025 - 2026 - 2027 - 2028 ve 2029", "note": ""}, {"item": "IndyCar", "period": "2025 - 2026 - 2027", "note": ""}, {"item": "MotoGP - Moto2 - Moto3", "period": "2025 - 2026 - 2027", "note": ""}, {"item": "ATP Tenis Turnuvaları önemli maçlar", "period": "2025 - 2026 - 2027 and 2028", "note": ""}, {"item": "Wimbledon Tenis önemli maçlar", "period": "2025 - 2026 - 2027", "note": ""}, {"item": "UFC Dövüş Gecesi yayınları", "period": "2027 sonuna kadar bizde", "note": ""}, {"item": "Oktagon", "period": "2025", "note": ""}, {"item": "PFL MMA", "period": "2025", "note": ""}, {"item": "Cage Warriors Boks Maçları", "period": "2025", "note": ""}, {"item": "BKFC", "period": "Kaldırıldı", "note": ""}];
 
+// -------------------------
+// ANA SAYFA CACHE'LERİ
+// -------------------------
+let homeBlocksCache = {};      // HomeBlocks sheet (quote vb.)
+let broadcastFlowCache = [];   // YayınAkisi sheet (maçlar)
+
+async function loadHomeBlocks(){
+    try{
+        const r = await fetch(SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "getHomeBlocks", username: (currentUser||""), token: safeGetToken() })
+        });
+        const d = await r.json();
+        if(d && d.result === "success") {
+            homeBlocksCache = d.blocks || {};
+            window.__homeBlocksCache = homeBlocksCache;
+        }
+    }catch(e){ /* sessiz */ }
+}
+
+async function loadBroadcastFlowCache(){
+    try{
+        broadcastFlowCache = await fetchBroadcastFlow();
+        window.__broadcastFlowCache = broadcastFlowCache;
+    }
+    catch(e){ /* sessiz */ }
+}
+
+// Bugünün ISO tarihi (yyyy-mm-dd)
+function _todayIsoLocal_(){
+    return _todayISO_tr_();
+}
+
+// Ana sayfa blok düzenleme (şimdilik sadece "quote")
+async function editHomeBlock(key){
+    if(key !== 'quote') return; // Bugün/Duyuru otomatik geliyor
+    if(!isAdminMode){ Swal.fire('Yetkisiz','Bu alanı sadece admin güncelleyebilir.','warning'); return; }
+
+    const cur = (homeBlocksCache && homeBlocksCache.quote) ? String(homeBlocksCache.quote.content || '') : '';
+    const { value: text } = await Swal.fire({
+        title: 'Günün Sözü',
+        input: 'textarea',
+        inputValue: cur,
+        inputPlaceholder: 'Buraya günün sözünü yaz...',
+        showCancelButton: true,
+        confirmButtonText: 'Kaydet',
+        cancelButtonText: 'Vazgeç',
+        inputAttributes: { autocapitalize: 'off' }
+    });
+    if(text === undefined) return;
+
+    try{
+        Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading() });
+        const r = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'updateHomeBlock', username: (currentUser||''), token: safeGetToken(), key: 'quote', content: String(text||'') })
+        });
+        const d = await r.json();
+        if(d && d.result === 'success'){
+            await loadHomeBlocks();
+            renderHomePanels();
+            Swal.fire({ icon: 'success', title: 'Güncellendi', timer: 1200, showConfirmButton: false });
+        }else{
+            throw new Error(d?.message || 'Güncellenemedi');
+        }
+    }catch(err){
+        Swal.fire('Hata', err?.message || 'Güncellenemedi', 'error');
+    }
+}
+
+function _todayISO_tr_(){
+    try{
+        // Europe/Istanbul gününü baz al
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }); // yyyy-mm-dd
+    }catch(e){
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+}
+
 function setActiveFilterButton(btn){
     try{
         document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
@@ -3657,7 +3742,12 @@ function showHomeScreen(){
     if (home) home.style.display = 'block';
     if (grid) grid.style.display = 'none';
     if (empty) empty.style.display = 'none';
+    // Önce mevcut cache ile hızlı çiz, sonra arka planda yenile ve tekrar çiz
     renderHomePanels();
+    Promise.allSettled([
+        (async()=>{ try{ await loadHomeBlocks(); }catch(e){} })(),
+        (async()=>{ try{ await loadBroadcastFlowCache(); }catch(e){} })()
+    ]).then(()=>{ try{ renderHomePanels(); }catch(e){} });
 }
 
 function hideHomeScreen(){
@@ -3668,31 +3758,82 @@ function hideHomeScreen(){
 }
 
 function renderHomePanels(){
-    // Bugün kutusu: en güncel 3 duyuru + yaklaşan yayın akışı (varsa)
+    // ✅ Bugün Neler Var? = Yayın Akışı'nda bugünün maçları
     const todayEl = document.getElementById('home-today');
-    if(todayEl){
-        const latest = (newsData || []).slice(0,3);
-        if(latest.length===0){
-            todayEl.innerHTML = 'Henüz duyuru yok.';
-        }else{
-            todayEl.innerHTML = latest.map(n=>`
-                <div style="padding:10px;border:1px solid #eef2f7;border-radius:10px;margin-bottom:10px;background:#fff">
-                  <div style="font-size:.78rem;color:#8a8a8a;font-weight:800">${escapeHtml(n.date||'')}</div>
-                  <div style="font-weight:900;color:#0e1b42;margin-top:2px">${escapeHtml(n.title||'')}</div>
-                  <div style="color:#555;margin-top:6px;line-height:1.45">${escapeHtml((n.desc||'')).slice(0,160)}${(n.desc||'').length>160?'...':''}</div>
-                </div>
-            `).join('');
+    if (todayEl) {
+        const todayISO = _todayISO_tr_();
+        const items = (broadcastFlowCache || []).filter(it => String(it?.dateISO || it?.date || '').trim() === todayISO);
+
+        // Önemli olanları üste al (varsa)
+        items.sort((a,b)=>{
+            const ai = (a && (a.isImportant || String(a.importance||'').toLowerCase()==='önemli')) ? 1 : 0;
+            const bi = (b && (b.isImportant || String(b.importance||'').toLowerCase()==='önemli')) ? 1 : 0;
+            if(ai !== bi) return bi - ai;
+            const ae = Number(a?.startEpoch || 0);
+            const be = Number(b?.startEpoch || 0);
+            if(ae && be) return ae - be;
+            return String(a?.time||'').localeCompare(String(b?.time||''));
+        });
+
+        if (!items.length) {
+            todayEl.innerHTML = '<div class="empty">Bugün için yayın akışı kaydı yok.</div>';
+        } else {
+            todayEl.innerHTML = items.slice(0, 12).map(it => {
+                const ev = escapeHtml(String(it?.event || '').trim());
+                const tm = escapeHtml(String(it?.time || '').trim());
+                const an = escapeHtml(String(it?.announcer || '').trim());
+                const imp = (it && (it.isImportant || String(it.importance||'').toLowerCase()==='önemli')) ? '<span class="home-imp">Önemli</span>' : '';
+                return `
+                  <div class="home-match-item">
+                    <div class="home-match-top">
+                      <div class="home-match-title">${imp}${ev || '-'}</div>
+                      <div class="home-match-time">${tm || ''}</div>
+                    </div>
+                    <div class="home-match-sub"><i class="fas fa-microphone"></i> ${an || '-'}</div>
+                  </div>
+                `;
+            }).join('');
         }
     }
 
-    // Favoriler kutusu: favori kartların ilk 6'sı
+    // ✅ Duyurular = aktif (Pasif olmayan) duyurular
+    const annEl = document.getElementById('home-ann');
+    if (annEl) {
+        const active = (newsData || []).filter(n => String(n?.status || '').toLowerCase() !== 'pasif');
+        if (!active.length) {
+            annEl.innerHTML = '<div class="empty">Güncel duyuru yok.</div>';
+        } else {
+            annEl.innerHTML = active.slice(0, 8).map(n => {
+                const dt = escapeHtml(n?.date || '');
+                const tt = escapeHtml(n?.title || '');
+                const ds = escapeHtml(n?.desc || '');
+                return `
+                  <div class="home-ann-item" onclick="openNews()">
+                    <div class="home-ann-date">${dt}</div>
+                    <div class="home-ann-title">${tt}</div>
+                    <div class="home-ann-desc">${ds}</div>
+                  </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // ✅ Günün Sözü = HomeBlocks.quote (admin düzenler)
+    const quoteEl = document.getElementById('home-quote');
+    if (quoteEl) {
+        const q = (homeBlocksCache && homeBlocksCache.quote) ? homeBlocksCache.quote : null;
+        const content = q ? String(q.content || '').trim() : '';
+        quoteEl.innerHTML = content ? `<div class="home-quote-box">${escapeHtml(content)}</div>` : '<div class="empty">Henüz söz eklenmedi.</div>';
+    }
+
+    // ✅ Favoriler kutusu: favori kartların ilk 6'sı
     const favEl = document.getElementById('home-favs');
-    if(favEl){
-        const favs = (cardsData||[]).filter(c=>isFavorite(c.id)).slice(0,6);
-        if(favs.length===0){
+    if (favEl) {
+        const favs = (cardsData || []).filter(c => isFavorite(c.id)).slice(0, 6);
+        if (!favs.length) {
             favEl.innerHTML = 'Henüz favori eklemedin. Kartlarda ⭐ simgesine basarak ekleyebilirsin.';
-        }else{
-            favEl.innerHTML = favs.map(c=>`
+        } else {
+            favEl.innerHTML = favs.map(c => `
                 <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid #eef2f7;border-radius:10px;padding:10px;margin-bottom:10px">
                   <div style="font-weight:900;color:#0e1b42;min-width:0;flex:1">
                     <div style="font-size:.75rem;color:#8a8a8a;font-weight:900">${escapeHtml(c.category||'')}</div>
@@ -3703,6 +3844,14 @@ function renderHomePanels(){
             `).join('');
         }
     }
+
+    // ✅ Ana sayfada sadece Quote düzenlenebilir (admin)
+    const eToday = document.getElementById('home-edit-today');
+    const eAnn = document.getElementById('home-edit-ann');
+    const eQuote = document.getElementById('home-edit-quote');
+    if (eToday) eToday.style.display = 'none';
+    if (eAnn) eAnn.style.display = 'none';
+    if (eQuote) eQuote.style.display = (isAdminMode ? 'inline-flex' : 'none');
 }
 
 // Kart detayını doğrudan açmak için küçük bir yardımcı
