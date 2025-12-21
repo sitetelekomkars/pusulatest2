@@ -130,8 +130,7 @@ function loadMenuPermissions(){
 // LocAdmin panel
 function openMenuPermissions(){
   const role=getMyRole();
-  // Sadece locadmin erişebilsin
-  if(role!=="locadmin"){
+  if(role!=="locadmin" && role!=="admin"){
     Swal.fire("Yetkisiz", "Bu ekrana erişimin yok.", "warning");
     return;
   }
@@ -611,21 +610,21 @@ function checkAdmin(role) {
         if (searchInput) { searchInput.disabled = false; searchInput.placeholder = "İçeriklerde hızlı ara..."; searchInput.style.opacity = '1'; }
     }
     
-    const perms = document.getElementById('dropdownPerms');
-
     if(isAdminMode) {
         if(addCardDropdown) addCardDropdown.style.display = 'flex';
         if(quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
+
+            // Yetki Yönetimi sadece locadmin'e görünsün
+            const perms = document.getElementById('dropdownPerms');
+            if(perms) perms.style.display = (String(localStorage.getItem('sSportRole')||'').toLowerCase()==='locadmin') ? 'flex' : 'none';
+
             quickEditDropdown.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
             quickEditDropdown.classList.remove('active');
         }
-        // Yetki Yönetimi sadece locadmin'e görünsün
-        if(perms) perms.style.display = isLocAdmin ? 'flex' : 'none';
     } else {
         if(addCardDropdown) addCardDropdown.style.display = 'none';
         if(quickEditDropdown) quickEditDropdown.style.display = 'none';
-        if(perms) perms.style.display = 'none';
     }
 }
 function logout() {
@@ -3916,62 +3915,51 @@ function hydrateTelesalesSegmentFilter(){
     sel.innerHTML = '<option value="all">Tüm Segmentler</option>' + segs.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 }
 
-function renderTelesalesDataOffers() {
+function renderTelesalesDataOffers(){
     const grid = document.getElementById('t-data-grid');
-    if (!grid) return;
+    if(!grid) return;
 
-    // Arama terimini al
-    const q = (document.getElementById('t-data-search')?.value || '').toLowerCase();
+    const q = (document.getElementById('t-data-search')?.value||'').toLowerCase();
 
-    // Filtreleme mantığı
-    const list = (telesalesOffers || []).filter(o => {
-        const hay = `${o.title || ''} ${o.desc || ''} ${o.segment || ''} ${o.tag || ''}`.toLowerCase();
-        return !q || hay.includes(q);
+    const list = (telesalesOffers||[]).filter(o=>{
+        const hay = `${o.title||''} ${o.desc||''} ${o.segment||''} ${o.tag||''}`.toLowerCase();
+        const okQ = !q || hay.includes(q);
+        return okQ;
     });
 
-    // Admin barı oluştur
-    const bar = (typeof isAdminMode !== 'undefined' && isAdminMode && typeof isEditingActive !== 'undefined' && isEditingActive) ? `
+    const bar = (isAdminMode && isEditingActive) ? `
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;margin:6px 0 12px;">
-          <button class="x-btn x-btn-admin" onclick="addTelesalesOffer()">
-            <i class="fas fa-plus"></i> Teklif Ekle
-          </button>
+          <button class="x-btn x-btn-admin" onclick="addTelesalesOffer()"><i class="fas fa-plus"></i> Teklif Ekle</button>
         </div>
     ` : '';
 
-    // Sayacı güncelle
-    const cnt = document.getElementById('t-data-count');
-    if (cnt) cnt.innerText = `${list.length} kayıt`;
-
-    // Sonuç yoksa uyarı göster
-    if (list.length === 0) {
+    if(list.length===0){
         grid.innerHTML = bar + '<div style="opacity:.7;padding:20px;grid-column:1/-1">Sonuç bulunamadı.</div>';
+        const cnt = document.getElementById('t-data-count'); if(cnt) cnt.innerText = '0 kayıt';
         return;
     }
 
-    // Kartları oluştur ve DOM'a bas
-    grid.innerHTML = bar + list.map((o, idx) => `
+    const cnt = document.getElementById('t-data-count');
+    if(cnt) cnt.innerText = `${list.length} kayıt`;
+
+    grid.innerHTML = bar + list.map((o, idx)=>`
         <div class="t-training-card" onclick="showTelesalesOfferDetail(${idx})" style="cursor:pointer">
           <div class="t-training-top">
-            <div class="t-training-title">${escapeHtml(o.title || 'Teklif')}</div>
-            <div class="t-training-badge">${escapeHtml(o.segment || o.tag || '')}</div>
+            <div class="t-training-title">${escapeHtml(o.title||'Teklif')}</div>
+            <div class="t-training-badge">${escapeHtml(o.segment||o.tag||'')}</div>
           </div>
-          <div class="t-training-desc">
-            ${escapeHtml((o.desc || '').slice(0, 140))}${(o.desc || '').length > 140 ? '...' : ''}
-          </div>
+          <div class="t-training-desc">${escapeHtml((o.desc||'').slice(0,140))}${(o.desc||'').length>140?'...':''}</div>
           <div style="margin-top:10px;color:#999;font-size:.8rem">(Detay için tıkla)</div>
-          ${(typeof isAdminMode !== 'undefined' && isAdminMode && isEditingActive) ? `
+          ${(isAdminMode && isEditingActive) ? `
             <div style="margin-top:12px;display:flex;gap:10px">
-              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesOffer(${idx});">
-                <i class="fas fa-pen"></i> Düzenle
-              </button>
-              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesOffer(${idx});">
-                <i class="fas fa-trash"></i> Sil
-              </button>
+              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesOffer(${idx});"><i class="fas fa-pen"></i> Düzenle</button>
+              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesOffer(${idx});"><i class="fas fa-trash"></i> Sil</button>
             </div>
           ` : ``}
         </div>
     `).join('');
 }
+
 function addTelesalesOffer(){
     Swal.fire({
         title:"TeleSatış Teklifi Ekle",
@@ -4124,10 +4112,10 @@ function renderTelesalesScripts(){
         if(Array.isArray(ov) && ov.length) list = ov;
     }catch(e){}
 
-    // TeleSatış'ta ayrı bir "düzenleme modu" yok: yalnızca global Düzenlemeyi Aç (isEditingActive) açıksa admin kontrolleri görünür.
     const bar = ((isAdminMode && isEditingActive) ? `
         <div style="display:flex;gap:10px;align-items:center;margin:6px 0 12px;">
-          <button class="x-btn x-btn-admin" onclick="addTelesalesScript()"><i class="fas fa-plus"></i> Script Ekle</button>
+          <button class="x-btn x-btn-admin" onclick="toggleTelesalesEdit()"><i class="fas fa-pen"></i> ${window.telesalesEditMode ? 'Düzenlemeyi Kapat' : 'Düzenlemeyi Aç'}</button>
+          ${window.telesalesEditMode ? `<button class="x-btn x-btn-admin" onclick="addTelesalesScript()"><i class="fas fa-plus"></i> Script Ekle</button>` : ``}
         </div>
     ` : '');
 
@@ -4142,7 +4130,7 @@ function renderTelesalesScripts(){
         <div class="news-desc" style="white-space:pre-line">${escapeHtml(s.text||'')}</div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px">
           <div class="news-tag" style="background:rgba(16,185,129,.08);color:#10b981;border:1px solid rgba(16,185,129,.25)">Tıkla & Kopyala</div>
-          ${(isAdminMode && isEditingActive) ? `
+          ${(isAdminMode && window.telesalesEditMode) ? `
             <div style="display:flex;gap:8px">
               <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesScript(${i});"><i class="fas fa-pen"></i></button>
               <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesScript(${i});"><i class="fas fa-trash"></i></button>
@@ -4151,6 +4139,20 @@ function renderTelesalesScripts(){
         </div>
       </div>
     `).join('');
+}
+
+// TeleSatış script düzenleme modu (global "Düzenlemeyi Aç" açıkken çalışır)
+function toggleTelesalesEdit(){
+    if(!isAdminMode){
+        Swal.fire('Yetkisiz', 'Bu işlem için admin yetkisi gerekli.', 'warning');
+        return;
+    }
+    if(!isEditingActive){
+        Swal.fire('Düzenleme kapalı', 'Önce üst menüden "Düzenlemeyi Aç" seçeneğini aç.', 'info');
+        return;
+    }
+    window.telesalesEditMode = !window.telesalesEditMode;
+    renderTelesalesScripts();
 }
 
 function getTelesalesScriptsStore(){
@@ -4344,48 +4346,38 @@ function renderTechSections(){
 
 let techEditMode = false;
 
-function renderTechList(bucketKey, q, listId) {
+function renderTechList(bucketKey, q, listId){
     const listEl = document.getElementById(listId);
-    if (!listEl) return;
+    if(!listEl) return;
 
-    // Veri kaynağı kontrolü
     const all = (window.__techBuckets && window.__techBuckets[bucketKey]) ? window.__techBuckets[bucketKey] : [];
-    const query = String(q || '').trim().toLowerCase();
+    const query = String(q||'').trim().toLowerCase();
 
-    // Filtreleme mantığı
-    const filtered = !query ? all : all.filter(c => {
-        const hay = `${c.title || ''} ${c.text || ''} ${c.script || ''} ${c.link || ''}`.toLowerCase();
+    const filtered = !query ? all : all.filter(c=>{
+        const hay = `${c.title||''} ${c.text||''} ${c.script||''} ${c.link||''}`.toLowerCase();
         return hay.includes(query);
     });
 
-    // Admin Bar Mantığı Düzeltildi
-    // isAdminMode ve isEditingActive true ise bar içeriğini oluştur, değilse boş string dön.
-    let bar = '';
-    if (typeof isAdminMode !== 'undefined' && isAdminMode && typeof isEditingActive !== 'undefined' && isEditingActive) {
-        bar = `
+    const bar = (isAdminMode ? `
         <div style="display:flex;gap:10px;align-items:center;margin:10px 0 14px;">
-          <button class="x-btn x-btn-admin" onclick="toggleTechEdit()">
-            <i class="fas fa-pen"></i> ${techEditMode ? 'Düzenlemeyi Kapat' : 'Düzenlemeyi Aç'}
-          </button>
-          ${techEditMode ? `<button class="x-btn x-btn-admin" onclick="addTechCard('${bucketKey}')"><i class="fas fa-plus"></i> Kart Ekle</button>` : ''}
+          <button class="x-btn x-btn-admin" onclick="toggleTechEdit()"><i class="fas fa-pen"></i> ${techEditMode ? 'Düzenlemeyi Kapat' : 'Düzenlemeyi Aç'}</button>
+          ${techEditMode ? `<button class="x-btn x-btn-admin" onclick="addTechCard('${bucketKey}')"><i class="fas fa-plus"></i> Kart Ekle</button>` : ``}
           <span style="color:#888;font-weight:800;font-size:.9rem">Bu düzenlemeler tarayıcıda saklanır (local).</span>
         </div>
-        `;
-    }
+    ` : '');
 
-    // Kayıt bulunamadı durumu
-    if (!filtered.length) {
+    if(!filtered.length){
         listEl.innerHTML = bar + '<div class="home-mini-item">Kayıt bulunamadı.</div>';
         return;
     }
 
-    // Listeyi Render Et
     listEl.innerHTML = bar + `
       <div class="x-card-grid">
-        ${filtered.map((c, idx) => techCardHtml(c, idx)).join('')}
+        ${filtered.map((c, idx)=> techCardHtml(c, idx)).join('')}
       </div>
     `;
 }
+
 function techCardKey(c, idx){
     return (c && (c.id || c.code)) ? String(c.id||c.code) : `${(c.title||'').slice(0,40)}__${idx}`;
 }
@@ -4840,8 +4832,7 @@ function renderTechCardsTab(q=''){
       return hay.includes(query);
     });
 
-    // TeleSatış'ta ayrı bir düzenleme modu yok; yalnızca global Düzenlemeyi Aç (isEditingActive) açıksa admin kontrolleri görünür.
-    const bar = ((isAdminMode && isEditingActive) ?&& isEditingActive)
+    const bar = (isAdminMode && isEditingActive)
       ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
            <button class="x-btn x-btn-admin" onclick="addTechCardSheet()"><i class="fas fa-plus"></i> Kart Ekle</button>
          </div>`
@@ -4906,45 +4897,6 @@ window.afterDataLoaded = function(){
 let __techDocsCache = null;
 let __techDocsLoadedAt = 0;
 
-// Sheet'ten gelen teknik içerikleri temizle/normalize et
-function __parseTechDocContent(raw){
-  let s = (raw==null ? '' : String(raw));
-
-  // JSON payload olarak kaydedilmişse (eski/yanlış kayıtlar)
-  const t = s.trim();
-  if((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('"{') && t.endsWith('}"'))){
-    try{
-      const obj = JSON.parse(t.startsWith('"{') ? JSON.parse(t) : t);
-      if(obj && typeof obj === 'object'){
-        const text = (obj.text || obj.icerik || obj.content || '').toString();
-        const script = (obj.script || '').toString();
-        const link = (obj.link || '').toString();
-        return { html: __normalizeTechHtml(text), script, link };
-      }
-    }catch(e){}
-  }
-
-  // Bazı kayıtlarda içerik sonuna ,"script":... gibi JSON artığı eklenmiş olabiliyor
-  const cutIdx = s.indexOf(',"script":');
-  if(cutIdx > -1) s = s.slice(0, cutIdx);
-
-  return { html: __normalizeTechHtml(s), script: '', link: '' };
-}
-
-function __normalizeTechHtml(s){
-  let out = (s==null ? '' : String(s));
-  // \u003cbr> (ve benzeri) kaçışlarını <br> yap
-  out = out
-    .replace(/\\u003cbr\\s*\\/?\\u003e/gi,'<br>')
-    .replace(/\\u003cbr\\s*\\/?/gi,'<br>')
-    .replace(/\\u003cbr>/gi,'<br>')
-    .replace(/\u003cbr\s*\/?\u003e/gi,'<br>')
-    .replace(/\u003cbr>/gi,'<br>');
-  // \n yeni satırları br'e çevir (textarea kayıtları)
-  out = out.replace(/\\n/g,'<br>').replace(/\n/g,'<br>');
-  return out;
-}
-
 function __normalizeTechTab(tab){
   // tab ids: broadcast, access, app, activation
   return tab;
@@ -4957,17 +4909,6 @@ function __normalizeTechCategory(cat){
   if(c.startsWith("akt")) return "activation";
   if(c.startsWith("bil")) return "info";
   return "";
-}
-
-function __techTabLabel(tabKey){
-  const map = {
-    broadcast: 'Yayın',
-    access: 'Erişim',
-    app: 'App Hataları',
-    activation: 'Aktivasyon',
-    info: 'Bilgi'
-  };
-  return map[tabKey] || tabKey;
 }
 
 async function __fetchTechDocs(){
@@ -4983,23 +4924,47 @@ async function __fetchTechDocs(){
   const data = await res.json();
   if(data.result !== "success") throw new Error(data.message || "getTechDocs failed");
   const rows = Array.isArray(data.data) ? data.data : [];
+  const decodeRich = (v)=>{
+    const s = (v||"").toString();
+    return s
+      .replace(/\\u003c/g,'<')
+      .replace(/\\u003e/g,'>')
+      .replace(/\\n/g,'\n');
+  };
+  const tryParseJsonBody = (v)=>{
+    const raw = (v||"").toString().trim();
+    if(!raw) return { text:"", extra:{} };
+    if(raw.startsWith('{') && raw.endsWith('}')){
+      try{
+        const obj = JSON.parse(raw);
+        const text = obj.text || obj.icerik || obj.content || obj.description || "";
+        return { text: text.toString(), extra: obj };
+      }catch(e){}
+    }
+    return { text: raw, extra:{} };
+  };
+
   return rows
     .filter(r => (r.Durum||"").toString().trim().toLowerCase() !== "pasif")
-    .map(r => {
-      const rawContent = (r.İçerik || r.Icerik || r.Content || r["İçerik"] || "").toString();
-      const parsed = __parseTechDocContent(rawContent);
-      return {
-        categoryKey: __normalizeTechCategory(r.Kategori),
-        kategori: (r.Kategori||"").trim(),
-        baslik: (r.Başlık || r.Baslik || r.Title || r["Başlık"] || "").toString().trim(),
-        icerik: parsed.html,
-        script: parsed.script,
-        adim: (r.Adım || r.Adim || r.Step || r["Adım"] || "").toString(),
-        not: (r.Not || "").toString(),
-        link: (parsed.link || (r.Link || "").toString()),
-        durum: (r.Durum || "").toString()
-      };
-    })
+    .map(r => ({
+      categoryKey: __normalizeTechCategory(r.Kategori),
+      kategori: (r.Kategori||"").trim(),
+      baslik: (r.Başlık || r.Baslik || r.Title || r["Başlık"] || "").toString().trim(),
+      ...(function(){
+        const bodyRaw = (r.İçerik || r.Icerik || r.Content || r["İçerik"] || "");
+        const parsed = tryParseJsonBody(bodyRaw);
+        const text = decodeRich(parsed.text);
+        const ex = parsed.extra || {};
+        const adim = decodeRich((r.Adım || r.Adim || r.Step || r["Adım"] || ex.step || ex.adim || ex.Adım || ""));
+        const not = decodeRich((r.Not || ex.note || ex.not || ""));
+        const link = decodeRich((r.Link || ex.link || ""));
+        return {
+          icerik: text,
+          adim, not, link
+        };
+      })(),
+      durum: (r.Durum || "").toString()
+    }))
     .filter(x => x.categoryKey && x.baslik);
 }
 
@@ -5032,17 +4997,8 @@ function __renderTechList(tabKey, items){
 
   function render(filtered){
     listEl.innerHTML = adminBar + filtered.map((it, idx) => {
-      const scriptHtml = it.script ? `
-        <div class="q-doc-meta" style="margin-top:10px">
-          <b>Script:</b>
-          <div style="margin-top:6px;background:#fff8e1;border:1px solid #ffe0b2;border-radius:10px;padding:10px">
-            <div style="white-space:pre-line;font-style:italic">${__escapeHtml(it.script)}</div>
-            <button class="x-btn x-btn-copy" style="margin-top:10px" onclick="copyText(${JSON.stringify(it.script)})"><i class=\"fas fa-copy\"></i> Kopyala</button>
-          </div>
-        </div>` : "";
       const body = [
         it.icerik ? `<div class="q-doc-body">${it.icerik}</div>` : "",
-        scriptHtml,
         it.adim ? `<div class="q-doc-meta"><b>Adım:</b> ${__escapeHtml(it.adim)}</div>` : "",
         it.not ? `<div class="q-doc-meta"><b>Not:</b> ${__escapeHtml(it.not)}</div>` : "",
         it.link ? `<div class="q-doc-meta"><b>Link:</b> <a href="${__escapeHtml(it.link)}" target="_blank">${__escapeHtml(it.link)}</a></div>` : ""
@@ -5119,7 +5075,7 @@ async function addTechDoc(tabKey){
       const title = (document.getElementById('td-title').value||'').trim();
       if(!title) return Swal.showValidationMessage('Başlık zorunlu');
       return {
-        kategori: __techTabLabel(tabKey),
+        kategori: tabKey,
         baslik: title,
         icerik: (document.getElementById('td-content').value||'').trim(),
         adim: (document.getElementById('td-step').value||'').trim(),
@@ -5172,7 +5128,7 @@ async function editTechDoc(tabKey, baslik){
       const title = (document.getElementById('td-title').value||'').trim();
       if(!title) return Swal.showValidationMessage('Başlık zorunlu');
       return {
-        kategori: __techTabLabel(tabKey),
+        kategori: tabKey,
         baslik: title,
         icerik: (document.getElementById('td-content').value||'').trim(),
         adim: (document.getElementById('td-step').value||'').trim(),
