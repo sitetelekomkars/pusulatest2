@@ -3916,24 +3916,27 @@ function hydrateTelesalesSegmentFilter(){
     sel.innerHTML = '<option value="all">Tüm Segmentler</option>' + segs.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 }
 
-function renderTelesalesDataOffers(){
+function renderTelesalesDataOffers() {
     const grid = document.getElementById('t-data-grid');
-    if(!grid) return;
+    if (!grid) return;
 
-    const q = (document.getElementById('t-data-search')?.value||'').toLowerCase();
+    const q = (document.getElementById('t-data-search')?.value || '').toLowerCase();
 
-    const list = (telesalesOffers||[]).filter(o=>{
-        const hay = `${o.title||''} ${o.desc||''} ${o.segment||''} ${o.tag||''}`.toLowerCase();
+    const list = (telesalesOffers || []).filter(o => {
+        const hay = `${o.title || ''} ${o.desc || ''} ${o.segment || ''} ${o.tag || ''}`.toLowerCase();
         const okQ = !q || hay.includes(q);
         return okQ;
     });
 
-    // TeleSatış'ta ayrı bir düzenleme modu yok; yalnızca global Düzenlemeyi Aç (isEditingActive) açıksa admin kontrolleri görünür.
-    const bar = ((isAdminMode && isEditingActive) ?&& isEditingActive) ? `
+
+    const bar = (isAdminMode && isEditingActive) ? `
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;margin:6px 0 12px;">
-          <button class="x-btn x-btn-admin" onclick="addTelesalesOffer()"><i class="fas fa-plus"></i> Teklif Ekle</button>
+          <button class="x-btn x-btn-admin" onclick="addTelesalesOffer()">
+            <i class="fas fa-plus"></i> Teklif Ekle
+          </button>
         </div>
     ` : '';
+}
 
     if(list.length===0){
         grid.innerHTML = bar + '<div style="opacity:.7;padding:20px;grid-column:1/-1">Sonuç bulunamadı.</div>';
