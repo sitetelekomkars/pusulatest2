@@ -56,6 +56,25 @@ let currentUser = "";
 // -------------------- Menu Permissions (LocAdmin) --------------------
 let menuPermissions = null; // { key: {allowedGroups:[], allowedRoles:[]} }
 
+// -------------------- HomeBlocks (Ana Sayfa blok içerikleri) --------------------
+let homeBlocks = {}; // { quote:{...}, ... }
+
+function loadHomeBlocks(){
+  // herkes için okunabilir (sheet'ten)
+  return apiCall("getHomeBlocks", {}).then(res=>{
+    homeBlocks = (res && res.blocks) ? res.blocks : {};
+    // local fallback cache
+    try{ localStorage.setItem('homeBlocksCache', JSON.stringify(homeBlocks||{})); }catch(e){}
+    try{ renderHomePanels(); }catch(e){}
+    return homeBlocks;
+  }).catch(e=>{
+    // sessiz fallback
+    try{ homeBlocks = JSON.parse(localStorage.getItem('homeBlocksCache')||'{}') || {}; }catch(_){ homeBlocks = {}; }
+    try{ renderHomePanels(); }catch(_){}
+    return homeBlocks;
+  });
+}
+
 function normalizeRole(v){
   return String(v||'').trim().toLowerCase();
 }
@@ -130,9 +149,9 @@ function loadMenuPermissions(){
 // LocAdmin panel
 function openMenuPermissions(){
   const role=getMyRole();
-  // Yetki Yönetimi sadece LOCADMIN için
+  // İstek: Yetki Yönetimi sadece LocAdmin rolünde görünsün ve çalışsın
   if(role!=="locadmin"){
-    Swal.fire("Yetkisiz", "Bu ekrana erişimin yok.", "warning");
+    Swal.fire("Yetkisiz", "Yetki Yönetimi sadece LocAdmin rolünde kullanılabilir.", "warning");
     return;
   }
   apiCall("getMenuPermissions",{}).then(res=>{
@@ -624,16 +643,17 @@ function checkAdmin(role) {
         if(addCardDropdown) addCardDropdown.style.display = 'flex';
         if(quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
-        // Yetki Yönetimi sadece locadmin'de görünsün
-        const perms = document.getElementById('dropdownPerms');
-        if(perms) perms.style.display = (isLocAdmin ? 'flex' : 'none');
+            // İstek: Yetki Yönetimi sadece LocAdmin rolünde görünsün
+            const perms = document.getElementById('dropdownPerms');
+            if(perms) perms.style.display = (isLocAdmin ? 'flex' : 'none');
             quickEditDropdown.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
             quickEditDropdown.classList.remove('active');
         }
     } else {
         if(addCardDropdown) addCardDropdown.style.display = 'none';
         if(quickEditDropdown) quickEditDropdown.style.display = 'none';
-        const perms = document.getElementById('dropdownPerms'); if(perms) perms.style.display = 'none';
+        const perms = document.getElementById('dropdownPerms');
+        if(perms) perms.style.display = 'none';
     }
 }
 function logout() {
@@ -896,13 +916,13 @@ function showCardDetail(title, text) {
         const alertTxt = (c.alert || '').toString();
         const link = (c.link || '').toString();
         const html = `
-          <div style="text-align:left; font-size:1rem; line-height:1.6;">
-            ${formatSheetTextToHtml(body)}
+          <div style="text-align:left; font-size:1rem; line-height:1.6; white-space:pre-line;">
+            ${escapeHtml(body).replace(/\n/g,'<br>')}
             ${link ? `<div style="margin-top:12px"><a href="${escapeHtml(link)}" target="_blank" rel="noreferrer" style="font-weight:800;color:var(--info);text-decoration:none"><i class=\"fas fa-link\"></i> Link</a></div>` : ''}
             ${script ? `<div class="tech-script-box" style="margin-top:12px">
-                <span class="tech-script-label">Müşteriye iletilecek:</span>${formatSheetTextToHtml(script)}
+                <span class="tech-script-label">Müşteriye iletilecek:</span>${escapeHtml(script).replace(/\n/g,'<br>')}
               </div>` : ''}
-            ${alertTxt ? `<div class="tech-alert" style="margin-top:12px">${formatSheetTextToHtml(alertTxt)}</div>` : ''}
+            ${alertTxt ? `<div class="tech-alert" style="margin-top:12px">${escapeHtml(alertTxt).replace(/\n/g,'<br>')}</div>` : ''}
           </div>`;
         Swal.fire({ title: t, html, showCloseButton: true, showConfirmButton: false, width: '820px', background: '#f8f9fa' });
         return;
@@ -911,7 +931,7 @@ function showCardDetail(title, text) {
     const safeText = (text ?? '').toString();
     Swal.fire({
         title: title,
-        html: `<div style="text-align:left; font-size:1rem; line-height:1.6;">${formatSheetTextToHtml(safeText)}</div>`,
+        html: `<div style="text-align:left; font-size:1rem; line-height:1.6;">${escapeHtml(safeText).replace(/\n/g,'<br>')}</div>`,
         showCloseButton: true, showConfirmButton: false, width: '600px', background: '#f8f9fa'
     });
 }
@@ -935,10 +955,6 @@ function toggleEditMode() {
     if(document.getElementById('guide-modal').style.display === 'flex') openGuide();
     if(document.getElementById('sales-modal').style.display === 'flex') openSales();
     if(document.getElementById('news-modal').style.display === 'flex') openNews();
-
-    // Ana düzenleme kapanırsa TeleSatış gibi alt modüllerin editleri de kapansın
-    try{ if(!isEditingActive) window.telesalesEditMode = false; }catch(e){}
-    try{ renderTelesalesScripts(); }catch(e){}
 }
 function sendUpdate(o, c, v, t='card') {
     if (!Swal.isVisible()) Swal.fire({ title: 'Kaydediliyor...', didOpen: () => { Swal.showLoading() } });
@@ -1443,31 +1459,6 @@ function escapeHtml(str) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
-}
-
-// Sheet'ten gelebilen <b> gibi tag'leri güvenli şekilde görselleştirir.
-// - Önce her şeyi escape eder.
-// - Sonra sadece izinli tag'leri (b/strong/i/em/u/br) geri açar.
-function formatSheetTextToHtml(input){
-    const raw = String(input ?? "");
-    // escape all
-    let out = escapeHtml(raw);
-    // newlines -> <br>
-    out = out.replace(/\r\n|\n|\r/g, '<br>');
-    // allow a small safe subset
-    out = out
-      .replace(/&lt;\s*br\s*\/?\s*&gt;/gi, '<br>')
-      .replace(/&lt;\s*b\s*&gt;/gi, '<strong>')
-      .replace(/&lt;\s*\/\s*b\s*&gt;/gi, '</strong>')
-      .replace(/&lt;\s*strong\s*&gt;/gi, '<strong>')
-      .replace(/&lt;\s*\/\s*strong\s*&gt;/gi, '</strong>')
-      .replace(/&lt;\s*i\s*&gt;/gi, '<em>')
-      .replace(/&lt;\s*\/\s*i\s*&gt;/gi, '</em>')
-      .replace(/&lt;\s*em\s*&gt;/gi, '<em>')
-      .replace(/&lt;\s*\/\s*em\s*&gt;/gi, '</em>')
-      .replace(/&lt;\s*u\s*&gt;/gi, '<u>')
-      .replace(/&lt;\s*\/\s*u\s*&gt;/gi, '</u>');
-    return out;
 }
 
 function openGuide() {
@@ -3760,11 +3751,7 @@ function renderHomePanels(){
                         const title = escapeHtml(it.match || it.title || it.event || '');
                         const ch = escapeHtml(it.channel || it.platform || '');
                         const league = escapeHtml(it.league || it.category || '');
-                        const spk = escapeHtml(
-                          it.spiker || it.spikers || it.spikerler ||
-                          it.commentator || it.commentators || it.speaker || it.speakers ||
-                          ''
-                        );
+                        const spk = escapeHtml(it.spiker || it.spikers || it.commentator || it.commentators || '');
                         return `
                           <div class="home-mini-item">
                             <div class="home-mini-date">${time}${league?` • ${league}`:''}${ch?` • ${ch}`:''}</div>
@@ -3774,6 +3761,7 @@ function renderHomePanels(){
                         `;
                     }).join('') + (todays.length>shown.length ? `<div style="color:#666;font-size:.9rem;margin-top:6px">+${todays.length-shown.length} maç daha…</div>` : '');
                 }
+
 
                 // kartı tıklayınca yayın akışına git
                 const card = todayEl.closest('.home-card');
@@ -3809,10 +3797,10 @@ function renderHomePanels(){
         }
     }
 
-    // --- GÜNÜN SÖZÜ ---
+    // --- GÜNÜN SÖZÜ (HomeBlocks -> e-tabla) ---
     const quoteEl = document.getElementById('home-quote');
     if(quoteEl){
-        const q = (localStorage.getItem('homeQuote') || '').trim();
+        const q = String((homeBlocks && homeBlocks.quote && homeBlocks.quote.content) ? homeBlocks.quote.content : (localStorage.getItem('homeQuote')||'')).trim();
         quoteEl.innerHTML = q ? escapeHtml(q) : '<span style="color:#999">Bugün için bir söz eklenmemiş.</span>';
     }
 
@@ -3827,21 +3815,23 @@ function renderHomePanels(){
     }catch(e){}
 }
 
-// Ana sayfa küçük kalem ikonları
+
+
+// Ana Sayfa - Günün Sözü düzenleme (sadece admin mod + düzenleme açıkken)
 function editHomeBlock(kind){
-    // Sadece düzenleme modu açık admin/locadmin kullanabilsin
-    if(!(isAdminMode && isEditingActive)){
-        Swal.fire("Bilgi", "Düzenleme yapmak için önce 'Düzenlemeyi Aç' seçmelisin.", "info");
+    if(!isAdminMode){
+        Swal.fire("Yetkisiz", "Bu işlem için admin yetkisi gerekli.", "warning");
         return;
     }
-
-    // Şimdilik sadece Günün Sözü editlenebilir
+    if(!isEditingActive){
+        Swal.fire("Kapalı", "Düzenleme modu kapalı. Önce 'Düzenlemeyi Aç' demelisin.", "info");
+        return;
+    }
     if(kind !== 'quote'){
-        Swal.fire("Bilgi", "Bu alan otomatik güncelleniyor.", "info");
+        Swal.fire("Bilgi", "Bu alan artık otomatik güncelleniyor.", "info");
         return;
     }
-
-    const cur = (localStorage.getItem('homeQuote') || '').trim();
+    const cur = String((homeBlocks && homeBlocks.quote && homeBlocks.quote.content) ? homeBlocks.quote.content : (localStorage.getItem('homeQuote') || '')).trim();
     Swal.fire({
         title: "Günün Sözü",
         input: "textarea",
@@ -3853,9 +3843,22 @@ function editHomeBlock(kind){
         preConfirm: (val)=> (val||'').trim()
     }).then(res=>{
         if(!res.isConfirmed) return;
-        localStorage.setItem('homeQuote', res.value || '');
-        renderHomePanels();
-        Swal.fire("Kaydedildi", "Günün sözü güncellendi.", "success");
+        const val = res.value || '';
+        // local fallback
+        try{ localStorage.setItem('homeQuote', val); }catch(e){}
+        // e-tabla (HomeBlocks)
+        apiCall('updateHomeBlock', { key:'quote', title:'Günün Sözü', content: val, visibleGroups:'' })
+          .then(()=>{
+            homeBlocks = homeBlocks || {};
+            homeBlocks.quote = { key:'quote', title:'Günün Sözü', content: val, visibleGroups:'' };
+            try{ localStorage.setItem('homeBlocksCache', JSON.stringify(homeBlocks||{})); }catch(e){}
+            renderHomePanels();
+            Swal.fire("Kaydedildi", "Günün sözü güncellendi.", "success");
+          })
+          .catch(()=>{
+            renderHomePanels();
+            Swal.fire("Kaydedildi", "Günün sözü güncellendi (yerel).", "success");
+          });
     });
 }
 
@@ -3993,9 +3996,11 @@ function renderTelesalesDataOffers(){
     if(cnt) cnt.innerText = `${list.length} kayıt`;
 
     grid.innerHTML = bar + list.map((o, idx)=>`
-        <div class="t-training-card" onclick="showTelesalesOfferDetail(${idx})" style="cursor:pointer">
-          <div class="t-training-top">
-            <div class="t-training-title">${escapeHtml(o.title||'Teklif')}</div>
+        <div class="q-training-card" onclick="showTelesalesOfferDetail(${idx})" style="cursor:pointer">
+          <div class="t-training-head">
+            <div style="min-width:0">
+              <div class="q-item-title" style="font-size:1.02rem">${escapeHtml(o.title||'Teklif')}</div>
+            </div>
             <div class="t-training-badge">${escapeHtml(o.segment||o.tag||'')}</div>
           </div>
           <div class="t-training-desc">${escapeHtml((o.desc||'').slice(0,140))}${(o.desc||'').length>140?'...':''}</div>
@@ -4162,12 +4167,13 @@ function renderTelesalesScripts(){
         if(Array.isArray(ov) && ov.length) list = ov;
     }catch(e){}
 
-    const bar = ((isAdminMode && isEditingActive) ? `
+    // İstek: TeleSatış Scriptler'deki ayrı "Düzenlemeyi Aç" kalksın.
+    // Düzenleme sadece üst kullanıcı menüsündeki global "Düzenlemeyi Aç" aktifken yapılabilsin.
+    const bar = (isAdminMode && isEditingActive) ? `
         <div style="display:flex;gap:10px;align-items:center;margin:6px 0 12px;">
-          <button class="x-btn x-btn-admin" onclick="toggleTelesalesEdit()"><i class="fas fa-pen"></i> ${window.telesalesEditMode ? 'Düzenlemeyi Kapat' : 'Düzenlemeyi Aç'}</button>
-          ${window.telesalesEditMode ? `<button class="x-btn x-btn-admin" onclick="addTelesalesScript()"><i class="fas fa-plus"></i> Script Ekle</button>` : ``}
+          <button class="x-btn x-btn-admin" onclick="addTelesalesScript()"><i class="fas fa-plus"></i> Script Ekle</button>
         </div>
-    ` : '');
+    ` : '';
 
     if(list.length===0){
         area.innerHTML = bar + '<div style="padding:16px;opacity:.7">Script bulunamadı.</div>';
@@ -4180,7 +4186,7 @@ function renderTelesalesScripts(){
         <div class="news-desc" style="white-space:pre-line">${escapeHtml(s.text||'')}</div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px">
           <div class="news-tag" style="background:rgba(16,185,129,.08);color:#10b981;border:1px solid rgba(16,185,129,.25)">Tıkla & Kopyala</div>
-          ${(isAdminMode && window.telesalesEditMode) ? `
+          ${(isAdminMode && isEditingActive) ? `
             <div style="display:flex;gap:8px">
               <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesScript(${i});"><i class="fas fa-pen"></i></button>
               <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesScript(${i});"><i class="fas fa-trash"></i></button>
@@ -4189,17 +4195,6 @@ function renderTelesalesScripts(){
         </div>
       </div>
     `).join('');
-}
-
-// TeleSatış Scriptler - düzenleme modu (ana 'Düzenlemeyi Aç' aktifken açılabilsin)
-if(typeof window.telesalesEditMode === 'undefined') window.telesalesEditMode = false;
-function toggleTelesalesEdit(){
-    if(!(isAdminMode && isEditingActive)){
-        Swal.fire('Bilgi', "TeleSatış'ta düzenleme için önce ana menüden 'Düzenlemeyi Aç' yapmalısın.", 'info');
-        return;
-    }
-    window.telesalesEditMode = !window.telesalesEditMode;
-    renderTelesalesScripts();
 }
 
 function getTelesalesScriptsStore(){
