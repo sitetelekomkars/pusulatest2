@@ -130,7 +130,7 @@ function loadMenuPermissions(){
 // LocAdmin panel
 function openMenuPermissions(){
   const role=getMyRole();
-  if(role!=="locadmin" && role!=="admin"){
+  if(role!=="locadmin"){
     Swal.fire("Yetkisiz", "Bu ekrana erişimin yok.", "warning");
     return;
   }
@@ -595,6 +595,12 @@ function checkAdmin(role) {
     isLocAdmin = (role === "locadmin");
     isEditingActive = false;
     document.body.classList.remove('editing');
+
+    // Yetki Yönetimi menüsü sadece locadmin görsün
+    try{
+      const mp = document.getElementById('dropdownPerms');
+      if(mp) mp.style.display = (isLocAdmin ? '' : 'none');
+    }catch(e){}
     
     const isQualityUser = (role === 'qusers');
     const filterButtons = document.querySelectorAll('.filter-btn:not(.btn-fav)'); 
@@ -623,7 +629,7 @@ function checkAdmin(role) {
         if(addCardDropdown) addCardDropdown.style.display = 'flex';
         if(quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
-        const perms = document.getElementById('dropdownPerms'); if(perms) perms.style.display = 'flex';
+        const perms = document.getElementById('dropdownPerms'); if(perms) perms.style.display = (isLocAdmin ? 'flex' : 'none');
             quickEditDropdown.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
             quickEditDropdown.classList.remove('active');
         }
@@ -893,7 +899,7 @@ function showCardDetail(title, text) {
         const link = (c.link || '').toString();
         const html = `
           <div style="text-align:left; font-size:1rem; line-height:1.6; white-space:pre-line;">
-            ${escapeHtml(body).replace(/\n/g,'<br>')}
+            ${sanitizeAllowedHTML(body)}
             ${link ? `<div style="margin-top:12px"><a href="${escapeHtml(link)}" target="_blank" rel="noreferrer" style="font-weight:800;color:var(--info);text-decoration:none"><i class=\"fas fa-link\"></i> Link</a></div>` : ''}
             ${script ? `<div class="tech-script-box" style="margin-top:12px">
                 <span class="tech-script-label">Müşteriye iletilecek:</span>${escapeHtml(script).replace(/\n/g,'<br>')}
@@ -1436,6 +1442,58 @@ function escapeHtml(str) {
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
 }
+
+/**
+ * Very small HTML sanitizer to render rich text coming from sheets.
+ * Allows only a safe subset of tags, strips attributes except <a href>.
+ */
+function sanitizeAllowedHTML(input){
+  const raw = String(input ?? "");
+  // Fast path: plain text -> escape then newline->br
+  const looksLikeHtml = /<\s*\/?\s*[a-z][^>]*>/i.test(raw);
+  if(!looksLikeHtml){
+    return escapeHtml(raw).replace(/\n/g, '<br>');
+  }
+  try{
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(raw, "text/html");
+    const allowedTags = new Set(["B","STRONG","I","EM","U","BR","P","UL","OL","LI","DIV","SPAN","A"]);
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null);
+    const toRemove = [];
+    while(walker.nextNode()){
+      const el = walker.currentNode;
+      const tag = el.tagName;
+      if(!allowedTags.has(tag)){
+        // Replace element with its textContent (keep children text)
+        const txt = doc.createTextNode(el.textContent || "");
+        el.parentNode && el.parentNode.replaceChild(txt, el);
+        continue;
+      }
+      // Strip attributes
+      [...el.attributes].forEach(a=>{
+        const name = a.name.toLowerCase();
+        if(tag === "A" && name === "href") return;
+        el.removeAttribute(a.name);
+      });
+      // Harden links
+      if(tag === "A"){
+        const href = el.getAttribute("href") || "";
+        if(!/^https?:\/\//i.test(href) && !href.startsWith("/")){
+          el.removeAttribute("href");
+        }else{
+          el.setAttribute("target","_blank");
+          el.setAttribute("rel","noopener noreferrer");
+        }
+      }
+    }
+    // Convert remaining newlines in text nodes by replacing with <br>
+    return doc.body.innerHTML.replace(/\n/g,'<br>');
+  }catch(e){
+    // fallback to escaped text
+    return escapeHtml(raw).replace(/\n/g,'<br>');
+  }
+}
+
 
 function openGuide() {
     document.getElementById('guide-modal').style.display = 'flex';
@@ -3681,7 +3739,28 @@ function hideHomeScreen(){
     if (grid) grid.style.display = 'grid';
 }
 
-function renderHomePanels(){
+
+// -------------------- Home Blocks (Günün Sözü vb.) --------------------
+let homeBlocksCache = null;
+let homeBlocksLoaded = false;
+
+async function ensureHomeBlocks(){
+  if(homeBlocksLoaded && homeBlocksCache) return homeBlocksCache;
+  try{
+    const d = await apiCall("getHomeBlocks", {});
+    if(d && d.result==="success"){
+      homeBlocksCache = d.blocks || {};
+      homeBlocksLoaded = true;
+      return homeBlocksCache;
+    }
+  }catch(e){}
+  homeBlocksCache = homeBlocksCache || {};
+  homeBlocksLoaded = true;
+  return homeBlocksCache;
+}
+
+async function renderHomePanels(){
+    await ensureHomeBlocks();
     // --- BUGÜN NELER VAR? (Yayın Akışı / bugünün maçları) ---
     const todayEl = document.getElementById('home-today');
     if(todayEl){
@@ -3739,7 +3818,9 @@ function renderHomePanels(){
                 }
 
 function editHomeBlock(kind){
-    if(!isAdminMode){
+    const role = getMyRole();
+    const canEdit = (role === "admin" || role === "locadmin");
+    if(!canEdit){
         Swal.fire("Yetkisiz", "Bu işlem için admin yetkisi gerekli.", "warning");
         return;
     }
@@ -3747,7 +3828,10 @@ function editHomeBlock(kind){
         Swal.fire("Bilgi", "Bu alan artık otomatik güncelleniyor.", "info");
         return;
     }
-    const cur = (localStorage.getItem('homeQuote') || '').trim();
+    const cur = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content!=null)
+        ? String(homeBlocksCache['quote'].content).trim()
+        : (localStorage.getItem('homeQuote') || '').trim();
+
     Swal.fire({
         title: "Günün Sözü",
         input: "textarea",
@@ -3757,12 +3841,28 @@ function editHomeBlock(kind){
         confirmButtonText: "Kaydet",
         cancelButtonText: "Vazgeç",
         preConfirm: (val)=> (val||'').trim()
-    }).then(res=>{
+    }).then(async (res)=>{
         if(!res.isConfirmed) return;
-        localStorage.setItem('homeQuote', res.value || '');
-        renderHomePanels();
-        Swal.fire("Kaydedildi", "Günün sözü güncellendi.", "success");
+        const val = res.value || '';
+        try{
+            const r = await apiCall("updateHomeBlock", { key:"quote", title:"Günün Sözü", content: val, visibleGroups:"" });
+            if(r && r.result==="success"){
+                homeBlocksCache = homeBlocksCache || {};
+                homeBlocksCache['quote'] = { key:"quote", title:"Günün Sözü", content: val, visibleGroups:"" };
+                localStorage.setItem('homeQuote', val);
+                await renderHomePanels();
+                Swal.fire("Kaydedildi", "Günün sözü güncellendi.", "success");
+                return;
+            }
+            throw new Error((r && r.message) ? r.message : "Kaydedilemedi");
+        }catch(e){
+            // offline fallback
+            localStorage.setItem('homeQuote', val);
+            await renderHomePanels();
+            Swal.fire("Kaydedildi", "Günün sözü yerel olarak güncellendi. (Sunucuya yazılamadı)", "info");
+        }
     });
+}
 }
 
                 // kartı tıklayınca yayın akışına git
@@ -3802,7 +3902,7 @@ function editHomeBlock(kind){
     // --- GÜNÜN SÖZÜ ---
     const quoteEl = document.getElementById('home-quote');
     if(quoteEl){
-        const q = (localStorage.getItem('homeQuote') || '').trim();
+        const q = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content!=null) ? String(homeBlocksCache['quote'].content).trim() : (localStorage.getItem('homeQuote')||'').trim();
         quoteEl.innerHTML = q ? escapeHtml(q) : '<span style="color:#999">Bugün için bir söz eklenmemiş.</span>';
     }
 
@@ -3813,7 +3913,7 @@ function editHomeBlock(kind){
         const b3 = document.getElementById('home-edit-quote');
         if(b1) b1.style.display = 'none'; // artık dinamik
         if(b2) b2.style.display = 'none'; // duyuru dinamik
-        if(b3) b3.style.display = (isAdminMode && isEditingActive ? 'inline-flex' : 'none');
+        if(b3) b3.style.display = ((getMyRole()==='admin' || getMyRole()==='locadmin') ? 'inline-flex' : 'none');
     }catch(e){}
 }
 
