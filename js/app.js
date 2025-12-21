@@ -878,18 +878,23 @@ function filterContent() {
 function showCardDetail(title, text) {
     // Sheet kaynaklı içeriklerde "<br>", "\\u003cbr>" gibi kaçışlar olabiliyor.
     // Güvenli şekilde (kısıtlı tag seti) HTML render etmek için normalize eder.
-    const normalizeRichTextToHtml = (raw) => {
+    const normalizeRichTextToHtml = (raw)=>{
         let s = (raw ?? '').toString();
+
+        // Bazı hücrelerde HTML entity olarak (&lt;br&gt; gibi) gelebiliyor. Önce çöz.
+        s = s
+          .replace(/&amp;/gi,'&')
+          .replace(/&lt;/gi,'<')
+          .replace(/&gt;/gi,'>');
 
         // Sık görülen kaçışlar
         s = s
-          // "\u003cbr>" gibi literal kaçışları gerçek tag'e çevir
-          .replace(/\\u003cbr\\u003e/gi, '<br>')
-          .replace(/\\u003cbr\s*\/\\u003e/gi, '<br>') // Düzenlendi: \\/ yerine \/
-          .replace(/\\u003c\s*br\s*\\u003e/gi, '<br>')
-          .replace(/\\u003c\s*br\s*\/\\u003e/gi, '<br>') // Düzenlendi: \\/ yerine \/
-          .replace(/\\u003c/gi, '<')
-          .replace(/\\u003e/gi, '>')
+          // "\u003cbr\u003e" / "\u003cbr/\u003e" gibi literal kaçışları gerçek tag'e çevir
+          // (Bazı tarayıcı/derleyici kombinasyonlarında \\/ içeren regex literal'ı SyntaxError'a sebep olabiliyor;
+          // bu yüzden tek, güvenli bir pattern kullanıyoruz.)
+          .replace(/\\u003c\s*br\s*\\/?\s*\\u003e/gi, '<br>')
+          .replace(/\\u003c/gi,'<')
+          .replace(/\\u003e/gi,'>')
           // literal \n -> gerçek newline
           .replace(/\\n/g, '\n');
 
@@ -3913,8 +3918,8 @@ async function editHomeBlock(kind){
         if(b1) b1.style.display = 'none'; // artık dinamik
         if(b2) b2.style.display = 'none'; // duyuru dinamik
         if(b3){
-            b3.style.display = (isAdminMode ? 'inline-flex' : 'none');
-            b3.onclick = ()=>editHomeBlock('quote');
+            b3.style.display = (isAdminMode && isEditingActive ? 'inline-flex' : 'none');
+            b3.onclick = (e)=>{ try{ e.stopPropagation(); }catch(_){ } editHomeBlock('quote'); };
         }
     }catch(e){}
 }
