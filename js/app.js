@@ -3920,51 +3920,58 @@ function renderTelesalesDataOffers() {
     const grid = document.getElementById('t-data-grid');
     if (!grid) return;
 
+    // Arama terimini al
     const q = (document.getElementById('t-data-search')?.value || '').toLowerCase();
 
+    // Filtreleme mantığı
     const list = (telesalesOffers || []).filter(o => {
         const hay = `${o.title || ''} ${o.desc || ''} ${o.segment || ''} ${o.tag || ''}`.toLowerCase();
-        const okQ = !q || hay.includes(q);
-        return okQ;
+        return !q || hay.includes(q);
     });
 
-
-    const bar = (isAdminMode && isEditingActive) ? `
+    // Admin barı oluştur
+    const bar = (typeof isAdminMode !== 'undefined' && isAdminMode && typeof isEditingActive !== 'undefined' && isEditingActive) ? `
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;margin:6px 0 12px;">
           <button class="x-btn x-btn-admin" onclick="addTelesalesOffer()">
             <i class="fas fa-plus"></i> Teklif Ekle
           </button>
         </div>
     ` : '';
-}
 
-    if(list.length===0){
+    // Sayacı güncelle
+    const cnt = document.getElementById('t-data-count');
+    if (cnt) cnt.innerText = `${list.length} kayıt`;
+
+    // Sonuç yoksa uyarı göster
+    if (list.length === 0) {
         grid.innerHTML = bar + '<div style="opacity:.7;padding:20px;grid-column:1/-1">Sonuç bulunamadı.</div>';
-        const cnt = document.getElementById('t-data-count'); if(cnt) cnt.innerText = '0 kayıt';
         return;
     }
 
-    const cnt = document.getElementById('t-data-count');
-    if(cnt) cnt.innerText = `${list.length} kayıt`;
-
-    grid.innerHTML = bar + list.map((o, idx)=>`
+    // Kartları oluştur ve DOM'a bas
+    grid.innerHTML = bar + list.map((o, idx) => `
         <div class="t-training-card" onclick="showTelesalesOfferDetail(${idx})" style="cursor:pointer">
           <div class="t-training-top">
-            <div class="t-training-title">${escapeHtml(o.title||'Teklif')}</div>
-            <div class="t-training-badge">${escapeHtml(o.segment||o.tag||'')}</div>
+            <div class="t-training-title">${escapeHtml(o.title || 'Teklif')}</div>
+            <div class="t-training-badge">${escapeHtml(o.segment || o.tag || '')}</div>
           </div>
-          <div class="t-training-desc">${escapeHtml((o.desc||'').slice(0,140))}${(o.desc||'').length>140?'...':''}</div>
+          <div class="t-training-desc">
+            ${escapeHtml((o.desc || '').slice(0, 140))}${(o.desc || '').length > 140 ? '...' : ''}
+          </div>
           <div style="margin-top:10px;color:#999;font-size:.8rem">(Detay için tıkla)</div>
-          ${(isAdminMode && isEditingActive) ? `
+          ${(typeof isAdminMode !== 'undefined' && isAdminMode && isEditingActive) ? `
             <div style="margin-top:12px;display:flex;gap:10px">
-              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesOffer(${idx});"><i class="fas fa-pen"></i> Düzenle</button>
-              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesOffer(${idx});"><i class="fas fa-trash"></i> Sil</button>
+              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); editTelesalesOffer(${idx});">
+                <i class="fas fa-pen"></i> Düzenle
+              </button>
+              <button class="x-btn x-btn-admin" onclick="event.stopPropagation(); deleteTelesalesOffer(${idx});">
+                <i class="fas fa-trash"></i> Sil
+              </button>
             </div>
           ` : ``}
         </div>
     `).join('');
 }
-
 function addTelesalesOffer(){
     Swal.fire({
         title:"TeleSatış Teklifi Ekle",
