@@ -3817,18 +3817,21 @@ async function renderHomePanels(){
                     }).join('') + (todays.length>shown.length ? `<div style="color:#666;font-size:.9rem;margin-top:6px">+${todays.length-shown.length} maç daha…</div>` : '');
                 }
 
-function editHomeBlock(kind){
+async function editHomeBlock(kind) {
     const role = getMyRole();
     const canEdit = (role === "admin" || role === "locadmin");
-    if(!canEdit){
+    
+    if (!canEdit) {
         Swal.fire("Yetkisiz", "Bu işlem için admin yetkisi gerekli.", "warning");
         return;
     }
-    if(kind !== 'quote'){
+
+    if (kind !== 'quote') {
         Swal.fire("Bilgi", "Bu alan artık otomatik güncelleniyor.", "info");
         return;
     }
-    const cur = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content!=null)
+
+    const cur = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content != null)
         ? String(homeBlocksCache['quote'].content).trim()
         : (localStorage.getItem('homeQuote') || '').trim();
 
@@ -3840,88 +3843,101 @@ function editHomeBlock(kind){
         showCancelButton: true,
         confirmButtonText: "Kaydet",
         cancelButtonText: "Vazgeç",
-        preConfirm: (val)=> (val||'').trim()
-    }).then(async (res)=>{
-        if(!res.isConfirmed) return;
+        preConfirm: (val) => (val || '').trim()
+    }).then(async (res) => {
+        if (!res.isConfirmed) return;
         const val = res.value || '';
-        try{
-            const r = await apiCall("updateHomeBlock", { key:"quote", title:"Günün Sözü", content: val, visibleGroups:"" });
-            if(r && r.result==="success"){
+        
+        try {
+            const r = await apiCall("updateHomeBlock", { key: "quote", title: "Günün Sözü", content: val, visibleGroups: "" });
+            if (r && r.result === "success") {
                 homeBlocksCache = homeBlocksCache || {};
-                homeBlocksCache['quote'] = { key:"quote", title:"Günün Sözü", content: val, visibleGroups:"" };
+                homeBlocksCache['quote'] = { key: "quote", title: "Günün Sözü", content: val, visibleGroups: "" };
                 localStorage.setItem('homeQuote', val);
                 await renderHomePanels();
                 Swal.fire("Kaydedildi", "Günün sözü güncellendi.", "success");
                 return;
             }
             throw new Error((r && r.message) ? r.message : "Kaydedilemedi");
-        }catch(e){
+        } catch (e) {
             // offline fallback
             localStorage.setItem('homeQuote', val);
             await renderHomePanels();
-         Swal.fire(
-    "Kaydedildi",
-    "Günün sözü yerel olarak güncellendi. (Sunucuya yazılamadı)",
-    "info"
-  );
+            Swal.fire(
+                "Kaydedildi",
+                "Günün sözü yerel olarak güncellendi. (Sunucuya yazılamadı)",
+                "info"
+            );
+        }
+    });
 }
 
-                // kartı tıklayınca yayın akışına git
-                const card = todayEl.closest('.home-card');
-                if(card){
-                    card.classList.add('clickable');
-                    card.onclick = ()=>openBroadcastFlow();
-                }
-            }catch(e){
-                todayEl.innerHTML = '<div class="home-mini-item">Yayın akışı alınamadı.</div>';
+// Panelleri render eden ve tıklama özelliklerini ekleyen ana fonksiyon
+async function renderHomePanels() {
+    // --- YAYIN AKIŞI (BUGÜN) ---
+    const todayEl = document.getElementById('home-today');
+    if (todayEl) {
+        try {
+            // Kartı tıklayınca yayın akışına gitme özelliği ekle
+            const card = todayEl.closest('.home-card');
+            if (card) {
+                card.classList.add('clickable');
+                card.onclick = () => openBroadcastFlow();
             }
-        })();
+        } catch (e) {
+            console.error("Yayın akışı hatası:", e);
+            todayEl.innerHTML = '<div class="home-mini-item">Yayın akışı alınamadı.</div>';
+        }
     }
 
     // --- DUYURULAR (son 3 duyuru) ---
     const annEl = document.getElementById('home-ann');
-    if(annEl){
-        const latest = (newsData || []).slice(0,3);
-        if(latest.length===0){
+    if (annEl) {
+        const latest = (newsData || []).slice(0, 3);
+        if (latest.length === 0) {
             annEl.innerHTML = '<div class="home-mini-item">Henüz duyuru yok.</div>';
-        }else{
-            annEl.innerHTML = latest.map(n=>`
+        } else {
+            annEl.innerHTML = latest.map(n => `
                 <div class="home-mini-item">
-                  <div class="home-mini-date">${escapeHtml(n.date||'')}</div>
-                  <div class="home-mini-title">${escapeHtml(n.title||'')}</div>
-                  <div class="home-mini-desc">${escapeHtml(String(n.desc||'')).slice(0,160)}${(n.desc||'').length>160?'...':''}</div>
+                  <div class="home-mini-date">${escapeHtml(n.date || '')}</div>
+                  <div class="home-mini-title">${escapeHtml(n.title || '')}</div>
+                  <div class="home-mini-desc">${escapeHtml(String(n.desc || '')).slice(0, 160)}${(n.desc || '').length > 160 ? '...' : ''}</div>
                 </div>
             `).join('');
         }
         const card = annEl.closest('.home-card');
-        if(card){
+        if (card) {
             card.classList.add('clickable');
-            card.onclick = ()=>openNews();
+            card.onclick = () => openNews();
         }
     }
 
     // --- GÜNÜN SÖZÜ ---
     const quoteEl = document.getElementById('home-quote');
-    if(quoteEl){
-        const q = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content!=null) ? String(homeBlocksCache['quote'].content).trim() : (localStorage.getItem('homeQuote')||'').trim();
+    if (quoteEl) {
+        const q = (homeBlocksCache && homeBlocksCache['quote'] && homeBlocksCache['quote'].content != null) 
+            ? String(homeBlocksCache['quote'].content).trim() 
+            : (localStorage.getItem('homeQuote') || '').trim();
         quoteEl.innerHTML = q ? escapeHtml(q) : '<span style="color:#999">Bugün için bir söz eklenmemiş.</span>';
     }
 
-    // Admin: edit butonlarını aç
-    try{
+    // Admin edit butonlarının görünürlüğü
+    try {
         const b1 = document.getElementById('home-edit-today');
         const b2 = document.getElementById('home-edit-ann');
         const b3 = document.getElementById('home-edit-quote');
-        if(b1) b1.style.display = 'none'; // artık dinamik
-        if(b2) b2.style.display = 'none'; // duyuru dinamik
-        if(b3) b3.style.display = ((getMyRole()==='admin' || getMyRole()==='locadmin') ? 'inline-flex' : 'none');
-    }catch(e){}
+        const isAdmin = (getMyRole() === 'admin' || getMyRole() === 'locadmin');
+        
+        if (b1) b1.style.display = 'none'; 
+        if (b2) b2.style.display = 'none'; 
+        if (b3) b3.style.display = isAdmin ? 'inline-flex' : 'none';
+    } catch (e) {}
 }
 
-// Kart detayını doğrudan açmak için küçük bir yardımcı
-function openCardDetail(cardId){
-    const card = (cardsData||[]).find(x=>String(x.id)===String(cardId));
-    if(!card){Swal.fire('Hata','Kart bulunamadı.','error');return;}
+// Kart detayını doğrudan açmak için yardımcı
+function openCardDetail(cardId) {
+    const card = (cardsData || []).find(x => String(x.id) === String(cardId));
+    if (!card) { Swal.fire('Hata', 'Kart bulunamadı.', 'error'); return; }
     showCardDetail(card);
 }
 
@@ -3929,8 +3945,20 @@ function openCardDetail(cardId){
    TELE SATIŞ FULLSCREEN
 --------------------------*/
 let telesalesOffers = [];
-function safeGetToken(){
-    try{ return (typeof getToken === 'function') ? getToken() : ''; }catch(e){ return ''; }
+function safeGetToken() {
+    try { return (typeof getToken === 'function') ? getToken() : ''; } catch (e) { return ''; }
+}
+
+async function fetchSheetObjects(actionName) {
+    const payload = { action: actionName, username: (typeof currentUser !== 'undefined' ? currentUser : ''), token: safeGetToken() };
+    const r = await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (!d || d.result !== "success") throw new Error((d && d.message) ? d.message : "Veri alınamadı.");
+    return d.data || d.items || [];
 }
 async function fetchSheetObjects(actionName){
     const payload = { action: actionName, username: (currentUser||''), token: safeGetToken() };
