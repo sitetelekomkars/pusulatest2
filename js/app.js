@@ -876,23 +876,20 @@ function filterContent() {
     renderCards(filtered);
 }
 function showCardDetail(title, text) {
-    // Sheet kaynaklı içeriklerde "<br>", "\\u003cbr>" gibi kaçışlar olabiliyor.
-    // Güvenli şekilde (kısıtlı tag seti) HTML render etmek için normalize eder.
+
     const normalizeRichTextToHtml = (raw)=>{
         let s = (raw ?? '').toString();
 
-        // Bazı hücrelerde HTML entity olarak (&lt;br&gt; gibi) gelebiliyor. Önce çöz.
+
         s = s
           .replace(/&amp;/gi,'&')
           .replace(/&lt;/gi,'<')
           .replace(/&gt;/gi,'>');
 
-        // Sık görülen kaçışlar
+      
         s = s
-          // "\u003cbr\u003e" / "\u003cbr/\u003e" gibi literal kaçışları gerçek tag'e çevir
-          // (Bazı tarayıcı/derleyici kombinasyonlarında \\/ içeren regex literal'ı SyntaxError'a sebep olabiliyor;
-          // bu yüzden tek, güvenli bir pattern kullanıyoruz.)
-          .replace(/\\u003c\s*br\s*\\/?\s*\\u003e/gi, '<br>')
+          
+          .replace(/\u003c\s*br\s*\/??\s*\u003e/gi, '<br>')
           .replace(/\\u003c/gi,'<')
           .replace(/\\u003e/gi,'>')
           // literal \n -> gerçek newline
