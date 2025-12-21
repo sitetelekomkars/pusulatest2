@@ -1031,6 +1031,10 @@ body.editing .edit-icon { display: block !important; }
   min-height: 120px;
 }
 .home-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+
+/* Ana sayfa: Bugün Neler Var + Duyurular otomatik çekiliyor (düzenleme butonu kapalı) */
+#home-edit-today,
+#home-edit-ann{ display:none !important; }
 .home-card-title{ font-weight: 900; color: #0e1b42; display:flex; align-items:center; gap:10px; }
 .home-card-body{ color:#555; line-height:1.55; }
 .home-edit{
@@ -1138,63 +1142,5 @@ body.editing .edit-icon { display: block !important; }
 .q-side-bottom{padding:14px 16px;border-top:1px solid rgba(255,255,255,.08)}
 .q-logout{width:100%;border:0;border-radius:12px;padding:12px 14px;background:#c62828;color:#fff;font-weight:900;cursor:pointer}
 .q-logout:hover{filter:brightness(.95)}
-/* =========================
-   ANA SAYFA (Home)
-   ========================= */
-.home-imp{
-  display:inline-block;
-  margin-right:8px;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:.72rem;
-  font-weight:900;
-  background: var(--secondary);
-  color:#0e1b42;
-}
-
-.home-match-item{
-  padding:10px;
-  border:1px solid #eef2f7;
-  border-radius:12px;
-  margin-bottom:10px;
-  background:#fff;
-}
-.home-match-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.home-match-title{font-weight:900;color:#0e1b42;line-height:1.2}
-.home-match-time{font-weight:900;color:#0e1b42;white-space:nowrap}
-.home-match-sub{margin-top:6px;color:#6b7280;font-size:.9rem}
-
-.home-ann-item{
-  padding:10px;
-  border:1px solid #eef2f7;
-  border-radius:12px;
-  margin-bottom:10px;
-  background:#fff;
-  cursor:pointer;
-}
-.home-ann-item:hover{filter:brightness(.98)}
-.home-ann-date{font-weight:900;color:#8a8a8a;font-size:.78rem}
-.home-ann-title{font-weight:900;color:#0e1b42;margin-top:2px}
-.home-ann-desc{color:#4b5563;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-
-.home-quote-box{
-  padding:14px;
-  border:1px solid #f0e6c6;
-  background:#fffaf0;
-  border-radius:14px;
-  font-weight:900;
-  color:#0e1b42;
-}
-
-.empty{
-  padding:10px;
-  border:1px dashed #ddd;
-  border-radius:12px;
-  background:#fafafa;
-  color:#666;
-  font-weight:800;
-}
-
-/* --- HOME CLICKABLE BLOCKS --- */
-.home-card-head.home-clickable{cursor:pointer;}
-.home-card-head.home-clickable:hover{filter:brightness(1.05);}
+/* --- HOME: Bugün Neler Var & Duyurular düzenleme butonlarını kapat --- */
+#home-edit-today, #home-edit-ann { display: none !important; }
