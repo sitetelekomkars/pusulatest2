@@ -13,7 +13,7 @@ function showGlobalError(message){
 }
 
 // Apps Script URL'si
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbx9LV5bCnRRu4sBx9z6mZqUiDCqRI3yJeh4td4ba1n8Zx4ebSRQ2FvtwSVEg4zsbVeZ/exec"; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycby3kd04k2u9XdVDD1-vdbQQAsHNW6WLIn8bNYxTlVCL3U1a0WqZo6oPp9zfBWIpwJEinQ/exec"; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
@@ -491,7 +491,30 @@ function checkSession() {
     const savedRole = localStorage.getItem("sSportRole");
     const savedGroup = localStorage.getItem("sSportGroup");
 
+    // ✅ Oturumun tarayıcı/PC kapat-aç sonrası ertesi güne sarkmaması için:
+    // - Aynı gün değilse otomatik çıkış
+    // - Ayrıca 12 saati geçtiyse otomatik çıkış
+    const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const sessionDay = localStorage.getItem("sSportSessionDay") || "";
+    const loginAt = parseInt(localStorage.getItem("sSportLoginAt") || "0", 10);
+    const maxAgeMs = 12 * 60 * 60 * 1000; // 12 saat
+
     if (savedUser && savedToken) {
+        const isOtherDay = (!sessionDay || sessionDay !== todayKey);
+        const isTooOld = (!loginAt || (Date.now() - loginAt) > maxAgeMs);
+
+        if (isOtherDay || isTooOld) {
+            try { logout(); } catch (e) {
+                localStorage.removeItem("sSportUser");
+                localStorage.removeItem("sSportToken");
+                localStorage.removeItem("sSportRole");
+                localStorage.removeItem("sSportGroup");
+                localStorage.removeItem("sSportSessionDay");
+                localStorage.removeItem("sSportLoginAt");
+            }
+            return;
+        }
+
         currentUser = savedUser;
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("user-display").innerText = currentUser;
@@ -561,6 +584,9 @@ function girisYap() {
             localStorage.setItem("sSportToken", data.token);
             localStorage.setItem("sSportRole", data.role);
             if (data.group) localStorage.setItem("sSportGroup", data.group);
+            // ✅ Oturum zaman damgası (ertesi gün otomatik çıkış için)
+            localStorage.setItem("sSportSessionDay", new Date().toISOString().slice(0, 10));
+            localStorage.setItem("sSportLoginAt", String(Date.now()));
             
             const savedRole = data.role;
             if (data.forceChange === true) {
@@ -661,7 +687,7 @@ function logout() {
     try{ document.getElementById("user-display").innerText = "Misafir"; }catch(e){}
     setHomeWelcomeUser("Misafir");
     document.body.classList.remove('editing');
-    localStorage.removeItem("sSportUser"); localStorage.removeItem("sSportToken"); localStorage.removeItem("sSportRole");
+    localStorage.removeItem("sSportUser"); localStorage.removeItem("sSportToken"); localStorage.removeItem("sSportRole"); localStorage.removeItem("sSportGroup"); localStorage.removeItem("sSportSessionDay"); localStorage.removeItem("sSportLoginAt");
     if (sessionTimeout) clearTimeout(sessionTimeout);
     document.getElementById("main-app").style.display = "none";
     document.getElementById("login-screen").style.display = "flex";
@@ -3723,7 +3749,7 @@ function renderHomePanels(){
         (async()=>{
             try{
                 const items = await fetchBroadcastFlow();
-                const d = new Date();
+               const d = new Date();
 const todayISO = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 
