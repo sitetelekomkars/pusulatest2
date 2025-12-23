@@ -14,7 +14,7 @@ function showGlobalError(message){
 
 // Apps Script URL'si
 const SELF_EXEC_URL = location.href.split("?")[0];
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || SELF_EXEC_URL; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("https://script.google.com/macros/s/AKfycbx9LV5bCnRRu4sBx9z6mZqUiDCqRI3yJeh4td4ba1n8Zx4ebSRQ2FvtwSVEg4zsbVeZ/exec") || SELF_EXEC_URL; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
