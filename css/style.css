@@ -1243,7 +1243,3 @@ body.editing .edit-icon { display: block !important; }
 
 /* Hide TeleSatış segment filter row (in case html remains) */
 #t-segment-filter{ display:none !important; }
-
-/* Değerlendirme geçmişi: kopyalanabilir ID */
-[data-copy-id]{transition:opacity .15s;}
-[data-copy-id]:hover{opacity:.8;}
