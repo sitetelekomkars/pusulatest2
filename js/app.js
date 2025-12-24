@@ -4373,9 +4373,13 @@ function closeFullTech(){
 }
 
 function switchTechTab(tab){
+    // Sidebar aktif öğeyi doğru belirle (onclick tek/çift tırnaklı olabilir)
     document.querySelectorAll('#tech-fullscreen .q-nav-item').forEach(i=>i.classList.remove('active'));
     document.querySelectorAll('#tech-fullscreen .q-nav-item').forEach(i=>{
-        if((i.getAttribute('onclick')||'').includes(`"${tab}"`)) i.classList.add('active');
+        const oc = (i.getAttribute('onclick') || '');
+        if(oc.includes(`'${tab}'`) || oc.includes(`\"${tab}\"`)){
+            i.classList.add('active');
+        }
     });
 
     document.querySelectorAll('#tech-fullscreen .q-view-section').forEach(s=>s.classList.remove('active'));
@@ -4491,10 +4495,10 @@ function techCardHtml(c, idx){
         </div>
         <div class="x-card-body">
           ${text ? `<div class="x-card-text x-card-text-truncate">${text}</div>` : ``}
-          ${hasDetail ? `<button class="x-readmore" onclick="openTechCardDetail(${JSON.stringify(key)})">Devam oku</button>` : ``}
+          ${hasDetail ? `<button class="x-readmore" onclick='openTechCardDetail(${JSON.stringify(key)})'>Devam oku</button>` : ``}
         </div>
         <div class="x-card-actions">
-          ${script ? `<button class="x-btn x-btn-copy" onclick="copyText(${JSON.stringify(script)})"><i class="fas fa-copy"></i> Kopyala</button>` : ``}
+          ${script ? `<button class="x-btn x-btn-copy" onclick='copyText(${JSON.stringify(script)})'><i class="fas fa-copy"></i> Kopyala</button>` : ``}
           ${isAdminMode && techEditMode ? `
             <button class="x-btn x-btn-admin" onclick="editTechCard(${JSON.stringify(key)})"><i class="fas fa-pen"></i> Düzenle</button>
             <button class="x-btn x-btn-admin" onclick="deleteTechCard(${JSON.stringify(key)})"><i class="fas fa-trash"></i> Sil</button>
@@ -4948,17 +4952,17 @@ function renderTechCardsTab(q=''){
             `
             : ``;
           return `
-            <div class="x-card" style="cursor:pointer" onclick="showCardDetail(${JSON.stringify(detailObj).replace(/</g,'\\u003c')})">
+            <div class="x-card" style="cursor:pointer" onclick='showCardDetail(${JSON.stringify(detailObj).replace(/</g,'\\u003c')})'>
               <div class="x-card-head">
                 <div class="x-card-title">${escapeHtml(c.title||'')}</div>
                 <div class="x-card-badge">TEKNİK</div>
               </div>
               <div class="x-card-body">
                 ${(c.text||'') ? `<div class="x-card-text x-card-text-truncate">${escapeHtml(c.text||'')}</div>` : `<div style="opacity:.7">İçerik yok</div>`}
-                ${hasDetail ? `<button class="x-readmore" onclick="event.stopPropagation();showCardDetail(${JSON.stringify(detailObj).replace(/</g,'\\u003c')})">Devam oku</button>` : ``}
+                ${hasDetail ? `<button class="x-readmore" onclick='event.stopPropagation();showCardDetail(${JSON.stringify(detailObj).replace(/</g,'\\u003c')})'>Devam oku</button>` : ``}
               </div>
               <div class="x-card-actions" onclick="event.stopPropagation();">
-                ${(c.script||'') ? `<button class="x-btn x-btn-copy" onclick="copyText(${JSON.stringify(c.script||'')})"><i class="fas fa-copy"></i> Kopyala</button>` : ``}
+                ${(c.script||'') ? `<button class="x-btn x-btn-copy" onclick='copyText(${JSON.stringify(c.script||'')})'><i class="fas fa-copy"></i> Kopyala</button>` : ``}
                 ${edit}
               </div>
             </div>
