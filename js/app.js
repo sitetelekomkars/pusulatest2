@@ -271,13 +271,8 @@ let adminUserList = [];
 let allEvaluationsData = [];
 let wizardStepsData = {};
 let trainingData = [];
-// Dashboard chart instance'ları
-let dashboardChart = null;      // Kırılım (bar)
-let dashboardTrendChart = null; // Trend (line)
-let dashboardDistChart = null;  // Skor dağılımı (bar)
-
-// Admin dashboard tablosu görünümü: 'low' | 'high'
-let __qTableMode = 'low';
+// YENİ: Chart instance'ı tutmak için
+let dashboardChart = null;
 // YENİ: Feedback Log Verisi (Manuel kayıt detayları için)
 let feedbackLogsData = [];
 // ==========================================================
@@ -2518,189 +2513,6 @@ function renderDashAgentScores(evals) {
     box.style.display = 'grid';
 }
 
-// Dashboard tablo modu (admin): en düşük / en yüksek
-window.toggleQTableMode = function(){
-    __qTableMode = (__qTableMode === 'low') ? 'high' : 'low';
-    const lbl = document.getElementById('q-table-mode-label');
-    if(lbl) lbl.textContent = (__qTableMode === 'low') ? 'En Düşük' : 'En Yüksek';
-    // yeniden çiz
-    try{ loadQualityDashboard(); }catch(e){}
-};
-
-function monthKeyFromDateTR(dateStr){
-    // dd.MM.yyyy -> MM.yyyy
-    if(!dateStr) return '';
-    const s = String(dateStr).split(' ')[0];
-    const parts = s.split('.');
-    if(parts.length >= 3) return `${parts[1]}.${parts[2]}`;
-    return '';
-}
-
-function monthKeyToDate(monthKey){
-    const mk = String(monthKey||'').trim();
-    const parts = mk.split('.');
-    if(parts.length !== 2) return new Date();
-    const mm = parseInt(parts[0],10);
-    const yy = parseInt(parts[1],10);
-    return new Date(yy, (mm||1)-1, 1);
-}
-
-function formatMonthKey(d){
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = d.getFullYear();
-    return `${mm}.${yy}`;
-}
-
-function lastNMonthKeys(endMonthKey, n){
-    const end = monthKeyToDate(endMonthKey);
-    const out = [];
-    for(let i=n-1;i>=0;i--){
-        const dd = new Date(end.getFullYear(), end.getMonth()-i, 1);
-        out.push(formatMonthKey(dd));
-    }
-    return out;
-}
-
-function computeMonthlyAverages(evals, monthKeys){
-    const by = {};
-    monthKeys.forEach(k=> by[k] = { total:0, count:0 });
-    (evals||[]).forEach(e=>{
-        const mk = monthKeyFromDateTR(e.date);
-        if(!mk || !by[mk]) return;
-        const s = parseFloat(e.score) || 0;
-        by[mk].total += s;
-        by[mk].count += 1;
-    });
-    return monthKeys.map(k=> ({ key:k, avg: by[k].count ? (by[k].total/by[k].count) : 0, count: by[k].count }));
-}
-
-function renderTrendChart(series){
-    const el = document.getElementById('q-trend-chart');
-    if(!el) return;
-    if(dashboardTrendChart){ dashboardTrendChart.destroy(); dashboardTrendChart = null; }
-
-    const labels = (series||[]).map(s=> s.key);
-    const data = (series||[]).map(s=> Number((s.avg||0).toFixed(1)));
-
-    dashboardTrendChart = new Chart(el, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Ortalama',
-                data,
-                tension: 0.35,
-                borderWidth: 2,
-                pointRadius: 3,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, max: 100, grid: { color: '#f0f0f0' } },
-                x: { grid: { display: false } }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx)=> `${ctx.parsed.y} ortalama (${series[ctx.dataIndex]?.count||0} adet)`
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderDistChart(filteredMonthEvals){
-    const el = document.getElementById('q-dist-chart');
-    if(!el) return;
-    if(dashboardDistChart){ dashboardDistChart.destroy(); dashboardDistChart = null; }
-
-    const bins = [
-        { label:'0-59', min:0, max:59 },
-        { label:'60-69', min:60, max:69 },
-        { label:'70-79', min:70, max:79 },
-        { label:'80-89', min:80, max:89 },
-        { label:'90-100', min:90, max:100 }
-    ];
-    const counts = bins.map(()=>0);
-    (filteredMonthEvals||[]).forEach(e=>{
-        const s = parseFloat(e.score)||0;
-        const idx = bins.findIndex(b=> s>=b.min && s<=b.max);
-        if(idx>=0) counts[idx] += 1;
-    });
-
-    dashboardDistChart = new Chart(el, {
-        type:'bar',
-        data:{ labels: bins.map(b=>b.label), datasets:[{ label:'Adet', data: counts, borderWidth: 1, borderRadius: 6 }] },
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            scales:{
-                y:{ beginAtZero:true, grid:{ color:'#f0f0f0' } },
-                x:{ grid:{ display:false } }
-            },
-            plugins:{ legend:{ display:false } }
-        }
-    });
-}
-
-function renderAgentTable(filteredMonthEvals, selectedGroup){
-    const card = document.getElementById('q-agent-table-card');
-    const body = document.getElementById('q-agent-table-body');
-    if(!card || !body) return;
-
-    if(!isAdminMode){ card.style.display='none'; return; }
-    const aSel = document.getElementById('q-dash-agent');
-    const a = aSel ? aSel.value : 'all';
-    if(a && a !== 'all'){ card.style.display='none'; return; }
-
-    const byAgent = {};
-    (filteredMonthEvals||[]).forEach(e=>{
-        const agent = e.agent || 'N/A';
-        const group = e.group || '';
-        const score = parseFloat(e.score)||0;
-        if(!byAgent[agent]) byAgent[agent] = { total:0, count:0, hit90:0, group: group };
-        byAgent[agent].total += score;
-        byAgent[agent].count += 1;
-        if(score >= 90) byAgent[agent].hit90 += 1;
-        if(!byAgent[agent].group && group) byAgent[agent].group = group;
-    });
-
-    let rows = Object.keys(byAgent).map(name=>{
-        const o = byAgent[name];
-        return {
-            name,
-            group: o.group || (selectedGroup && selectedGroup !== 'all' ? selectedGroup : ''),
-            avg: o.count ? (o.total/o.count) : 0,
-            count: o.count,
-            rate: o.count ? Math.round((o.hit90/o.count)*100) : 0
-        };
-    });
-
-    if(selectedGroup && selectedGroup !== 'all') rows = rows.filter(r=> (r.group||'') === selectedGroup);
-    rows.sort((x,y)=> (__qTableMode==='low' ? (x.avg - y.avg) : (y.avg - x.avg)));
-    rows = rows.slice(0, 12);
-
-    body.innerHTML = rows.map(r=>{
-        const avgTxt = (r.avg||0).toFixed(1);
-        return `
-          <tr>
-            <td>${escapeHtml(r.name||'')}</td>
-            <td><span class="q-muted">${escapeHtml(r.group||'-')}</span></td>
-            <td style="text-align:right"><span class="q-badge">${avgTxt}</span></td>
-            <td style="text-align:right">${r.count||0}</td>
-            <td style="text-align:right">%${r.rate||0}</td>
-          </tr>
-        `;
-    }).join('');
-
-    card.style.display = rows.length ? 'block' : 'none';
-}
-
 // Detay alanını toleranslı parse et
 function safeParseDetails(details) {
     if(!details) return null;
@@ -2906,12 +2718,6 @@ function loadQualityDashboard() {
         document.getElementById('q-dash-score').innerText = avg;
         document.getElementById('q-dash-count').innerText = count;
         document.getElementById('q-dash-target').innerText = `%${rate}`;
-
-        // Alt bilgi
-        try{
-            const sub = document.getElementById('q-dash-sub');
-            if(sub) sub.textContent = selectedMonth ? `Dönem: ${selectedMonth}` : 'Seçili dönem';
-        }catch(e){}
         
         // Ring Chart Rengi
         const ring = document.getElementById('q-dash-ring');
@@ -2925,35 +2731,6 @@ function loadQualityDashboard() {
         renderDashAgentScores(filtered);
         // Grafik Çizdir
         renderDashboardChart(filtered);
-
-        // Yeni: Trend (son 6 dönem) + dağılım + admin tablo
-        // Trend için aynı grup/temsilci filtresi ile tüm aylardan veri al
-        const filteredAllMonths = allEvaluationsData.filter(e => {
-            let matchGroup = true;
-            let matchAgent = true;
-            if (isAdminMode) {
-                if (selectedGroup !== 'all') {
-                    if (e.group) {
-                        matchGroup = (e.group === selectedGroup);
-                    } else {
-                        const user = adminUserList.find(u => u.name === e.agent);
-                        matchGroup = (user && user.group === selectedGroup);
-                    }
-                }
-                if (selectedAgent !== 'all' && e.agent !== selectedAgent) matchAgent = false;
-            } else {
-                if(e.agent !== currentUser) matchAgent = false;
-            }
-            const isManual = e.callId && String(e.callId).toUpperCase().startsWith('MANUEL-');
-            return matchGroup && matchAgent && !isManual;
-        });
-
-        const endKey = selectedMonth || monthKeyFromDateTR(new Date().toLocaleDateString('tr-TR')) || formatMonthKey(new Date());
-        const keys = lastNMonthKeys(endKey, 6);
-        const series = computeMonthlyAverages(filteredAllMonths, keys);
-        renderTrendChart(series);
-        renderDistChart(filtered);
-        renderAgentTable(filtered, selectedGroup);
     });
 }
 function renderDashboardChart(data) {
