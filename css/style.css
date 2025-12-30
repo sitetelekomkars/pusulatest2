@@ -1329,3 +1329,45 @@ body.editing .edit-icon { display: block !important; }
 }
 
 /* RESMİ ENGELLEYEN MOZAİK KODU BURADAN SİLİNMİŞTİR */
+
+/* --- v2 Quality Dashboard (Sales + Chat unified) --- */
+.q-stats-row-4{ grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px){
+  .q-stats-row-4{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px){
+  .q-stats-row-4{ grid-template-columns: 1fr; }
+}
+.box-red{ border-color: #d32f2f; }
+.box-red .stat-icon{ background:#d32f2f; }
+
+.q-dashboard-grid.v2{
+  display:grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.q-dashboard-grid.v2 .q-chart-card{ align-items: stretch; }
+.q-dashboard-grid.v2 .q-card-ring{ grid-column: span 3; }
+.q-dashboard-grid.v2 .q-card-wide{ grid-column: span 6; }
+.q-dashboard-grid.v2 .q-chart-card:not(.q-card-ring):not(.q-card-wide){ grid-column: span 3; }
+@media (max-width: 1200px){
+  .q-dashboard-grid.v2 .q-card-ring{ grid-column: span 4; }
+  .q-dashboard-grid.v2 .q-card-wide{ grid-column: span 8; }
+  .q-dashboard-grid.v2 .q-chart-card:not(.q-card-ring):not(.q-card-wide){ grid-column: span 4; }
+}
+@media (max-width: 900px){
+  .q-dashboard-grid.v2{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .q-dashboard-grid.v2 .q-card-ring{ grid-column: span 6; }
+  .q-dashboard-grid.v2 .q-card-wide{ grid-column: span 6; }
+  .q-dashboard-grid.v2 .q-chart-card{ grid-column: span 6; }
+}
+
+.q-card-head{ width:100%; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.q-card-head h3{ margin:0; color:#0e1b42; font-size:1.02rem; }
+.q-card-sub{ color:#6b7280; font-size:.82rem; font-weight:600; text-align:right; }
+.q-chart-wrap{ position:relative; height: 240px; width: 100%; }
+.q-card-ring .q-chart-wrap{ height:auto; }
+
+/* Filters: keep compact on smaller screens */
+.q-dash-filters .minimal-select{ min-width: 120px; }
