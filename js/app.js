@@ -2394,13 +2394,11 @@ function populateDashboardFilters() {
     if(!isAdminMode) {
         if(groupSelect) groupSelect.style.display = 'none';
         if(agentSelect) agentSelect.style.display = 'none';
-        if(channelSelect) channelSelect.style.display = 'none';
-        return;
+return;
     } else {
         if(groupSelect) groupSelect.style.display = 'block';
         if(agentSelect) agentSelect.style.display = 'block';
-        if(channelSelect) channelSelect.style.display = 'block';
-    }
+}
     
     if(!groupSelect) return;
     
@@ -2696,17 +2694,14 @@ function loadQualityDashboard() {
         const selectedMonth = monthSelect ? monthSelect.value : '';
         const selectedGroup = groupSelect ? groupSelect.value : 'all';
         const selectedAgent = agentSelect ? agentSelect.value : 'all';
-        const channelSelect = document.getElementById('q-dash-channel');
-        const selectedChannel = channelSelect ? channelSelect.value : 'all';
-        
-        let filtered = allEvaluationsData.filter(e => {
+        const selectedChannel = "all";
+let filtered = allEvaluationsData.filter(e => {
             const eDate = e.date.substring(3); // dd.MM.yyyy -> MM.yyyy
             const matchMonth = (eDate === selectedMonth);
             
             let matchGroup = true;
             let matchAgent = true;
-            let matchChannel = true;
-            // Admin filtreleme mantığı
+// Admin filtreleme mantığı
             if (isAdminMode) {
                 // Eğer veri içinde grup bilgisi varsa onu kullan, yoksa adminUserList'ten bakmak gerekir.
                 if (selectedGroup !== 'all') {
@@ -2725,11 +2720,7 @@ function loadQualityDashboard() {
             }
             // MANUEL kayıtları dashboard'da gösterme
             const isManual = e.callId && String(e.callId).toUpperCase().startsWith('MANUEL-');
-            if (selectedChannel && selectedChannel !== 'all') {
-                const ch = deriveChannelFromGroup(e.group);
-                matchChannel = (ch === selectedChannel);
-            }
-            return matchMonth && matchGroup && matchAgent && matchChannel && !isManual;
+return matchMonth && matchGroup && matchAgent && !isManual;
         });
         const total = filtered.reduce((acc, curr) => acc + (parseInt(curr.score)||0), 0);
         const count = filtered.length;
