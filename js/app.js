@@ -37,6 +37,14 @@ if (typeof Swal === "undefined") {
 }
 
 
+// Chart.js DataLabels (veri etiketleri)
+try{
+  if(window.Chart && window.ChartDataLabels && !window.__datalabels_registered){
+    Chart.register(ChartDataLabels);
+    window.__datalabels_registered = true;
+  }
+}catch(e){}
+
 
 // Oyun Değişkenleri
 let jokers = { call: 1, half: 1, double: 1 };
@@ -718,7 +726,7 @@ async function changePasswordPopup(isMandatory = false) {
         html: `${isMandatory ? '<p style="font-size:0.9rem; color:#d32f2f;">İlk giriş şifrenizi değiştirmeden devam edemezsiniz.</p>' : ''}<input id="swal-old-pass" type="password" class="swal2-input" placeholder="Eski Şifre (Mevcut)"><input id="swal-new-pass" type="password" class="swal2-input" placeholder="Yeni Şifre">`,
         focusConfirm: false, showCancelButton: !isMandatory, allowOutsideClick: !isMandatory, allowEscapeKey: !isMandatory,
         confirmButtonText: 'Değiştir', cancelButtonText: 'İptal',
-        preConfirm: () => {
+        preConfirm: async () => {
             const o = document.getElementById('swal-old-pass').value;
             const n = document.getElementById('swal-new-pass').value;
             if(!o || !n) { Swal.showValidationMessage('Alanlar boş bırakılamaz'); }
@@ -1106,7 +1114,7 @@ async function addNewCardPopup() {
                 }
             };
         },
-        preConfirm: () => {
+        preConfirm: async () => {
             const type = document.getElementById('swal-type-select').value;
             const today = new Date();
             const dateStr = today.getDate() + "." + (today.getMonth()+1) + "." + today.getFullYear();
@@ -1174,7 +1182,7 @@ async function editContent(index) {
             selectEl.style.margin = "0"; selectEl.style.height = "30px"; selectEl.style.fontSize = "0.8rem"; selectEl.style.padding = "0 5px";
             selectEl.addEventListener('change', function() { cardEl.className = 'card ' + this.value; });
         },
-        preConfirm: () => {
+        preConfirm: async () => {
             return {
                 cat: document.getElementById('swal-cat').value,
                 title: document.getElementById('swal-title').value,
@@ -2291,11 +2299,13 @@ function openQualityArea() {
     // Yetki kontrolü (Admin butonlarını göster/gizle)
     const adminFilters = document.getElementById('admin-filters');
     const assignBtn = document.getElementById('assign-training-btn');
+    const uploadDocBtn = document.getElementById('upload-training-doc-btn');
     const manualFeedbackBtn = document.getElementById('manual-feedback-admin-btn');
     
     if (isAdminMode) {
         if(adminFilters) adminFilters.style.display = 'flex';
         if(assignBtn) assignBtn.style.display = 'block';
+        if(uploadDocBtn) uploadDocBtn.style.display = 'block';
         if(manualFeedbackBtn) manualFeedbackBtn.style.display = 'flex';
         
         // Kullanıcı listesi boşsa çek, sonra filtreleri doldur
@@ -2315,6 +2325,7 @@ function openQualityArea() {
     } else {
         if(adminFilters) adminFilters.style.display = 'none';
         if(assignBtn) assignBtn.style.display = 'none';
+        if(uploadDocBtn) uploadDocBtn.style.display = 'none';
         if(manualFeedbackBtn) manualFeedbackBtn.style.display = 'none';
         
         // Admin değilse filtreleri gizle
@@ -2760,7 +2771,7 @@ function loadQualityDashboard() {
             }).sort((a,b)=> a.pct - b.pct);
             if(arr.length){
                 const k = arr[0].k;
-                worstLabel = k.length > 28 ? (k.substring(0,28)+'…') : k;
+                worstLabel = k.length > 60 ? (k.substring(0,60)+'…') : k; ') : k;
             }
         } catch(e){}
         const worstEl = document.getElementById('q-dash-worst');
@@ -3013,6 +3024,7 @@ function renderDashboardTrendChart(data){
                 x:{ grid:{ display:false } }
             },
             plugins:{
+                datalabels:{display:(ctx)=> ctx.dataIndex === (ctx.dataset.data.length-1), formatter:(v)=> v, align:'top', anchor:'end', clamp:true},
                 legend:{ display:false },
                 tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y} Ortalama` } }
             }
@@ -3062,6 +3074,7 @@ function renderDashboardChannelChart(data){
             responsive:true,
             maintainAspectRatio:false,
             plugins:{
+                datalabels:{display:true, formatter:(v)=> v, anchor:'center', align:'center', clamp:true},
                 legend:{ position:'bottom' },
                 tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${ctx.formattedValue}` } }
             }
@@ -3103,6 +3116,7 @@ function renderDashboardScoreDistributionChart(data){
                 x:{ grid:{ display:false } }
             },
             plugins:{
+                datalabels:{display:true, formatter:(v)=> v, align:'top', anchor:'end', clamp:true},
                 legend:{ display:false },
                 tooltip:{ callbacks:{ label:(ctx)=> `${ctx.parsed.y} kayıt` } }
             }
@@ -3154,6 +3168,7 @@ function renderDashboardGroupAvgChart(data){
                 y:{ grid:{ display:false } }
             },
             plugins:{
+                datalabels:{display:true, formatter:(v)=> v, align:'top', anchor:'end', clamp:true},
                 legend:{ display:false },
                 tooltip:{
                     callbacks:{
@@ -3165,6 +3180,53 @@ function renderDashboardGroupAvgChart(data){
         }
     });
 }
+
+// Doküman yükleme (Drive'a) — Admin/LocAdmin
+async function uploadTrainingDocToDrive(file){
+  if(!file) throw new Error('Dosya seçilmedi');
+  const toBase64 = (f)=> new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result||'').split(',')[1]||'');
+    r.onerror=()=>reject(new Error('Dosya okunamadı'));
+    r.readAsDataURL(f);
+  });
+  const base64Data = await toBase64(file);
+  const res = await apiCall('uploadTrainingDoc', { filename: file.name, mimeType: file.type||'application/octet-stream', base64Data });
+  return res;
+}
+
+async function uploadTrainingDocPopup(){
+  if(!isAdminMode){
+    Swal.fire('Yetkisiz','Doküman yükleme sadece Admin/LocAdmin için açıktır.','warning');
+    return;
+  }
+  const { value: file } = await Swal.fire({
+    title: 'Eğitim Dokümanı Yükle',
+    input: 'file',
+    inputAttributes: { 'accept': '*/*' },
+    showCancelButton: true,
+    confirmButtonText: 'Yükle',
+    cancelButtonText: 'Vazgeç',
+    inputValidator: (v)=> !v ? 'Lütfen bir dosya seçin' : undefined
+  });
+  if(!file) return;
+  Swal.fire({title:'Yükleniyor...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
+  try{
+    const out = await uploadTrainingDocToDrive(file);
+    const url = (out && out.downloadUrl) ? out.downloadUrl : (out && out.url) ? out.url : '';
+    Swal.fire({
+      icon:'success',
+      title:'Yüklendi',
+      html:`<div style="text-align:left;font-size:.92rem">Döküman linki hazır. Eğitim atarken <b>Döküman Linki</b> alanına yapıştırabilirsin.</div>
+            <input id="swal-doc-url" class="swal2-input" value="${escapeHtml(url)}" readonly style="font-size:.85rem"/>`,
+      confirmButtonText:'Kopyala',
+      preConfirm: ()=>{ try{ copyText(url); }catch(e){} }
+    });
+  }catch(e){
+    Swal.fire('Hata', e.message||'Yükleme başarısız', 'error');
+  }
+}
+
 // --- EĞİTİM MODÜLÜ (YENİ) ---
 function loadTrainingData() {
     const listEl = document.getElementById('training-list');
@@ -3256,6 +3318,84 @@ function completeTraining(id) {
         }
     });
 }
+
+
+// --- EĞİTİM DÖKÜMAN YÜKLEME (Drive) ---
+function fileToBase64(file){
+    return new Promise((resolve,reject)=>{
+        try{
+            const reader = new FileReader();
+            reader.onerror = ()=>reject(new Error('Dosya okunamadı'));
+            reader.onload = ()=>{
+                const res = String(reader.result||'');
+                const base64 = res.includes(',') ? res.split(',')[1] : res;
+                resolve(base64);
+            };
+            reader.readAsDataURL(file);
+        }catch(e){ reject(e); }
+    });
+}
+
+async function uploadTrainingDocToDrive(file){
+    if(!file) throw new Error('Dosya seçilmedi');
+    const base64Data = await fileToBase64(file);
+    const json = await apiCall('uploadTrainingDoc', {
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64Data
+    });
+    return json; // { fileId, viewUrl, downloadUrl }
+}
+
+async function uploadTrainingDocPopup(){
+    if(!isAdminMode){
+        Swal.fire('Yetkisiz', 'Bu işlem sadece admin için kullanılabilir.', 'warning');
+        return;
+    }
+    let selectedFile = null;
+    const result = await Swal.fire({
+        title: 'Döküman Yükle',
+        html: '<input type="file" id="swal-up-file" class="swal2-file" style="width:100%">',
+        showCancelButton: true,
+        confirmButtonText: 'Yükle',
+        cancelButtonText: 'Vazgeç',
+        didOpen: ()=>{
+            const inp = document.getElementById('swal-up-file');
+            if(inp){
+                inp.accept = '.pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.png,.jpg,.jpeg';
+                inp.onchange = (e)=>{ selectedFile = (e.target.files && e.target.files[0]) ? e.target.files[0] : null; };
+            }
+        },
+        preConfirm: async ()=>{
+            if(!selectedFile){
+                Swal.showValidationMessage('Lütfen dosya seçin');
+                return false;
+            }
+            try{
+                const up = await uploadTrainingDocToDrive(selectedFile);
+                return up;
+            }catch(e){
+                Swal.showValidationMessage(e.message || 'Yükleme başarısız');
+                return false;
+            }
+        }
+    });
+
+    if(result.isConfirmed && result.value && result.value.downloadUrl){
+        const link = result.value.downloadUrl;
+        Swal.fire({
+            icon:'success',
+            title:'Yüklendi',
+            html: `<div style="text-align:left">
+                <div style="font-weight:600; margin-bottom:6px">İndirme Linki</div>
+                <input id="swal-up-link" class="swal2-input" value="${link}" readonly>
+                <div style="font-size:.85rem; color:#666">Bu linki “Döküman Linki” alanına yapıştırabilirsiniz.</div>
+            </div>`,
+            confirmButtonText:'Kopyala',
+            preConfirm: ()=>{ try{ copyText(link); }catch(e){} }
+        });
+    }
+}
 async function assignTrainingPopup() {
     const { value: formValues } = await Swal.fire({
         title: 'Yeni Eğitim & Döküman Ata',
@@ -3265,6 +3405,7 @@ async function assignTrainingPopup() {
                 <textarea id="swal-t-desc" class="swal2-textarea" style="height:100px; grid-column: 1 / 4;" placeholder="Eğitim açıklaması veya talimatlar..."></textarea>
                 <input id="swal-t-link" class="swal2-input" placeholder="Video/Eğitim Linki (URL)" style="grid-column: 1 / 4;">
                 <input id="swal-t-doc" class="swal2-input" placeholder="Döküman Linki (Drive/PDF URL) (İsteğe Bağlı)" style="grid-column: 1 / 4;">
+                <input id="swal-t-file" type="file" class="swal2-file" style="grid-column: 1 / 4; margin-top:6px;"/>
                 <input type="date" id="swal-t-start" class="swal2-input" value="${new Date().toISOString().substring(0, 10)}">
                 <input type="date" id="swal-t-end" class="swal2-input">
                 <input id="swal-t-duration" class="swal2-input" placeholder="Süre (Örn: 20dk)">
@@ -3290,18 +3431,30 @@ async function assignTrainingPopup() {
             };
             updateTrainingTarget('Genel');
         },
-        preConfirm: () => {
+        preConfirm: async () => {
             const target = document.getElementById('swal-t-target').value;
             const agent = target === 'Individual' ? document.getElementById('swal-t-agent').value : '';
             if (!document.getElementById('swal-t-title').value || (!target && !agent)) {
                 Swal.showValidationMessage('Başlık ve Atama Alanı boş bırakılamaz');
                 return false;
             }
+            let docLinkVal = document.getElementById('swal-t-doc').value || '';
+            const fileInput = document.getElementById('swal-t-file');
+            const f = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+            if(!docLinkVal && f){
+                try{
+                    const up = await uploadTrainingDocToDrive(f);
+                    docLinkVal = (up && (up.downloadUrl || up.viewUrl)) ? (up.downloadUrl || up.viewUrl) : docLinkVal;
+                }catch(e){
+                    Swal.showValidationMessage(e.message || 'Döküman yüklenemedi');
+                    return false;
+                }
+            }
             return {
                 title: document.getElementById('swal-t-title').value,
                 desc: document.getElementById('swal-t-desc').value,
                 link: document.getElementById('swal-t-link').value,
-                docLink: document.getElementById('swal-t-doc').value || 'N/A',
+                docLink: (docLinkVal ? docLinkVal : 'N/A'),
                 target: target,
                 targetAgent: agent, // Kişiye özel atama için
                 creator: currentUser,
@@ -3590,7 +3743,7 @@ async function addManualFeedbackPopup() {
             const sel = document.getElementById('manual-q-agent');
             adminUserList.forEach(u => sel.innerHTML += `<option value="${u.name}">${u.name}</option>`);
         },
-        preConfirm: () => {
+        preConfirm: async () => {
             const agentName = document.getElementById('manual-q-agent').value;
             const topic = document.getElementById('manual-q-topic').value;
             const feedback = document.getElementById('manual-q-feedback').value;
@@ -3931,7 +4084,7 @@ async function logEvaluationPopup() {
             if (isTelesatis) window.recalcTotalSliderScore(); 
             else if (isChat) window.recalcTotalScore(); 
         },
-        preConfirm: () => {
+        preConfirm: async () => {
             const callId = document.getElementById('eval-callid').value.trim();
             if (!callId) {
                 Swal.showValidationMessage('Call ID alanı boş bırakılamaz!');
@@ -4031,7 +4184,7 @@ async function editEvaluation(targetCallId) {
         allowOutsideClick: false,
         allowEscapeKey: false,
         didOpen: () => { if (isTelesatis) window.recalcTotalSliderScore(); else if (isChat) window.recalcTotalScore(); },
-        preConfirm: () => {
+        preConfirm: async () => {
             const callId = document.getElementById('eval-callid').value;
             const feedback = document.getElementById('eval-feedback').value;
             if (isCriteriaBased) {
