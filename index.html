@@ -153,63 +153,27 @@
   </div>
 </div>
 
-
 <div id="view-evaluations" class="q-view-section">
-  <div class="q-view-header q-dash-header" style="flex-wrap:wrap;gap:10px">
-    <h2>Değerlendirme Geçmişi</h2>
-    <div class="q-dash-filters" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="add-btn admin-btn" onclick="exportEvaluations()">
-        <i class="fas fa-file-csv" aria-hidden="true"></i>Rapor
-      </button>
-      <div id="admin-filters" style="display:none;gap:10px;align-items:center;flex-wrap:wrap">
-        <select id="q-admin-group" onchange="updateAgentListBasedOnGroup()" class="minimal-select" style="max-width:140px">
-          <option value="all">Tüm Gruplar</option>
-        </select>
-        <select id="q-admin-agent" onchange="fetchEvaluationsForAgent()" class="minimal-select" style="max-width:150px">
-          <option value="all">Tüm Temsilciler</option>
-        </select>
-      </div>
-      <div class="q-period-selector" style="margin-left:10px">
-        <span>Dönem:</span>
-        <select id="q-eval-month" onchange="fetchEvaluationsForAgent()" class="minimal-select"></select>
-      </div>
-    </div>
-  </div>
-  <div id="evaluations-list" class="q-scroll-area"></div>
+<div class="q-view-header">
+<h2>Değerlendirme Geçmişi</h2>
+<div id="admin-filters" style="display:none;gap:10px;align-items:center;margin-left:auto;flex-wrap:wrap">
+<button class="add-btn" onclick="logEvaluationPopup()">
+<i class="fas fa-plus" aria-hidden="true"></i>Ekle</button>
+<button class="admin-btn" onclick="exportEvaluations()">
+<i class="fas fa-file-csv" aria-hidden="true"></i>Rapor</button>
+<select id="q-admin-group" onchange="updateAgentListBasedOnGroup()" class="minimal-select">
+<option value="all">Tüm Gruplar</option>
+</select>
+<select id="q-admin-agent" onchange="fetchEvaluationsForAgent()" class="minimal-select">
+<option value="all">Tüm Temsilciler</option>
+</select>
+<div class="q-period-selector" style="margin-left:10px">
+<span>Dönem:</span>
+<select id="q-eval-month" onchange="fetchEvaluationsForAgent()"></select>
 </div>
-
-<div id="view-feedback" class="q-view-section">
-  <div class="q-view-header">
-    <h2>Geri Bildirimler</h2>
-    <div class="q-dash-filters" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div id="q-feedback-filters" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <select id="q-feedback-group" onchange="populateFeedbackFilters()" class="minimal-select" style="width:120px">
-          <option value="all">Tüm Gruplar</option>
-        </select>
-        <select id="q-feedback-agent" onchange="refreshFeedbackData()" class="minimal-select" style="width:130px">
-          <option value="all">Tüm Temsilciler</option>
-        </select>
-      </div>
-      <button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none" onclick="addManualFeedbackPopup()">
-        <i class="fas fa-plus" aria-hidden="true"></i> Ekle
-      </button>
-    </div>
-  </div>
-  <div id="feedback-list" class="q-scroll-area"></div>
 </div>
-
-<div id="view-training" class="q-view-section">
-  <div class="q-view-header">
-    <h2>Eğitim & Gelişim</h2>
-    <button id="assign-training-btn" class="add-btn" style="display:none" onclick="assignTrainingPopup()">
-      <i class="fas fa-plus" aria-hidden="true"></i> Eğitim Ata
-    </button>
-  </div>
-  <div id="training-list" class="q-scroll-area"></div>
 </div>
-
-<div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div>
-<script src="js/app.js"></script><script>function toggleUserDropdown() {
+<div id="evaluations-list" class="q-scroll-area"></div></div><div id="view-feedback" class="q-view-section"><div class="q-view-header"><h2>Geri Bildirimler</h2><div id="q-feedback-filters" style="display:flex;gap:10px;margin-left:auto;align-items:center;flex-wrap:wrap"><select id="q-feedback-group" onchange="updateFeedbackAgentList()" style="width:120px"><option value="all">Tüm Gruplar</option></select><select id="q-feedback-agent" onchange="refreshFeedbackData()" style="width:130px"><option value="all">Tüm Temsilciler</option></select></div><button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none" onclick="addManualFeedbackPopup()"><i class="fas fa-plus-circle" aria-hidden="true"></i>Geri Bildirim Ekle</button></div><div id="feedback-list" class="q-scroll-area"></div></div><div id="view-training" class="q-view-section"><div class="q-view-header"><h2>Eğitim & Gelişim</h2><button id="assign-training-btn" class="add-btn" style="display:none" onclick="assignTrainingPopup()">+ Eğitim Ata</button></div><div id="training-list" class="q-training-grid"></div></div></div></div><div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div><script src="js/app.js"></script><script>function toggleUserDropdown() {
             const dropdown = document.getElementById('userDropdown');
             const arrow = document.getElementById('user-menu-arrow');
             dropdown.classList.toggle('show');
