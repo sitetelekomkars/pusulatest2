@@ -2471,7 +2471,7 @@ function switchQualityTab(tabName, element) {
 }
 // --- DASHBOARD FONKSİYONLARI ---
 function populateMonthFilterFull() {
-    const selectIds = ['q-dash-month', 'q-eval-month']; // Dashboard + Değerlendirme listesi
+    const selectIds = ['q-dash-month']; // Sadece yeni filtre
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -3912,20 +3912,9 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
         targetGroup = groupSelect ? groupSelect.value : 'all';
     }
     try {
-        const periodSelect = document.getElementById('q-eval-month');
-        const selectedPeriod = periodSelect ? periodSelect.value : null;
-
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "fetchEvaluations",
-                targetAgent: targetAgent,
-                targetGroup: targetGroup,
-                period: selectedPeriod,
-                username: currentUser,
-                token: getToken()
-            })
+            method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "fetchEvaluations", targetAgent: targetAgent, targetGroup: targetGroup, username: currentUser, token: getToken() })
         });
         const data = await response.json();
 
@@ -3937,27 +3926,9 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
 
             // Sadece normal değerlendirmeleri filtrele ve göster
             const normalEvaluations = allEvaluationsData.filter(e => !String(e.callId).toUpperCase().startsWith('MANUEL-'));
+            if (normalEvaluations.length === 0) { listEl.innerHTML = `<p style="text-align:center; color:#666;">Kayıt yok.</p>`; return; }
 
-            // Dönem filtresini uygula (seçili ay / yıl)
-            let filteredEvaluations = normalEvaluations;
-            const periodSelectForList = document.getElementById('q-eval-month');
-            const selectedPeriodForList = periodSelectForList ? periodSelectForList.value : null;
-            if (selectedPeriodForList) {
-                filteredEvaluations = normalEvaluations.filter(e => {
-                    if (!e.date) return false;
-                    const parts = String(e.date).split('.');
-                    if (parts.length < 3) return false;
-                    const monthYear = `${parts[1].padStart(2, '0')}.${parts[2]}`;
-                    return monthYear === selectedPeriodForList;
-                });
-            }
-
-            if (filteredEvaluations.length === 0) {
-                listEl.innerHTML = '<p style="padding:20px; text-align:center; color:#666;">Kayıt yok.</p>';
-                return;
-            }
-
-            filteredEvaluations.forEach((evalItem, index) => {
+            normalEvaluations.forEach((evalItem, index) => {
                 const scoreColor = evalItem.score >= 90 ? '#2e7d32' : (evalItem.score >= 70 ? '#ed6c02' : '#d32f2f');
                 let editBtn = isAdminMode ? `<i class="fas fa-pen" style="font-size:1rem; color:#fabb00; cursor:pointer; margin-right:5px;" onclick="event.stopPropagation(); editEvaluation('${evalItem.callId}')"></i>` : '';
                 // İsim iki kez yazılmasın: agent zaten başlıkta var. Eğer agentName gibi ayrı bir alan varsa onu göster.
@@ -4257,26 +4228,96 @@ async function editEvaluation(targetCallId) {
         confirmButtonText: ' 💾  Güncelle',
         allowOutsideClick: false,
         allowEscapeKey: false,
-        didOpen: () => { if (isTelesatis) window.recalcTotalSliderScore(); else if (isChat) window.recalcTotalScore(); },
-        preConfirm: () => {
+        didOpen: () => {
+            if (isTelesatis) window.recalcTotalSliderScore();
+            else if (isChat) window.recalcTotalScore();
+
+            // Düzenleme ekranında çağrı tarihi alanını dinamik ekle ve doldur
+            const wrapper = document.querySelector('.swal2-container .eval-modal-wrapper') || document.querySelector('.eval-modal-wrapper');
+            if (wrapper && !document.getElementById('eval-calldate')) {
+                const row = document.createElement('div');
+                row.className = 'eval-header-card';
+                row.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>Çağrı Tarihi</label>
+                        <input type="date" id="eval-calldate" class="swal2-input" style="height:38px;" />
+                    </div>`;
+                // İlk karttan hemen sonra ekleyelim
+                if (wrapper.firstChild) {
+                    wrapper.insertBefore(row, wrapper.firstChild.nextSibling);
+                } else {
+                    wrapper.appendChild(row);
+                }
+            }
+
+            const dateInput = document.getElementById('eval-calldate');
+            if (dateInput) {
+                let raw = (evalData.callDate && evalData.callDate !== 'N/A') ? evalData.callDate : evalData.date;
+                if (raw && typeof raw === 'string' && raw.indexOf('.') !== -1) {
+                    const parts = raw.split('.');
+                    if (parts.length === 3) {
+                        dateInput.value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                    }
+                }
+                if (!dateInput.value) {
+                    dateInput.value = new Date().toISOString().substring(0, 10);
+                }
+            }
+        },
+        
+preConfirm: () => {
             const callId = document.getElementById('eval-callid').value;
             const feedback = document.getElementById('eval-feedback').value;
-            if (isCriteriaBased) {
-                let total = 0; let detailsArr = [];
-                for (let i = 0; i < criteriaList.length; i++) {
-                    const c = criteriaList[i]; if (parseInt(c.points) === 0) continue;
-                    let val = 0; let note = document.getElementById(`note-${i}`).value;
-                    if (isChat) val = parseInt(document.getElementById(`badge-${i}`).innerText) || 0;
-                    else if (isTelesatis) val = parseInt(document.getElementById(`slider-${i}`).value) || 0;
-                    else val = parseInt(c.points);
-                    total += val; detailsArr.push({ q: c.text, max: parseInt(c.points), score: val, note: note });
+
+            // Çağrı tarihi (yyyy-MM-dd) -> dd.MM.yyyy
+            let callDate = null;
+            const dateInput = document.getElementById('eval-calldate');
+            if (dateInput && dateInput.value) {
+                const d = new Date(dateInput.value);
+                if (!isNaN(d.getTime())) {
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    callDate = dd + "." + mm + "." + yyyy;
                 }
-                return { agentName, callId, score: total, details: JSON.stringify(detailsArr), feedback };
+            }
+            if (!callDate) {
+                // Eğer input boş ise eski değeri koru
+                callDate = (evalData.callDate && evalData.callDate !== 'N/A') ? evalData.callDate : (evalData.date || '');
+            }
+
+            if (isCriteriaBased) {
+                let total = 0; 
+                let detailsArr = [];
+                for (let i = 0; i < criteriaList.length; i++) {
+                    const c = criteriaList[i];
+                    if (parseInt(c.points) === 0) continue;
+                    let val = 0;
+                    const noteEl = document.getElementById(`note-${i}`);
+                    let note = noteEl ? noteEl.value : '';
+                    if (isChat) {
+                        const badgeEl = document.getElementById(`badge-${i}`);
+                        val = badgeEl ? parseInt(badgeEl.innerText) || 0 : 0;
+                    } else if (isTelesatis) {
+                        const sliderEl = document.getElementById(`slider-${i}`);
+                        val = sliderEl ? parseInt(sliderEl.value) || 0 : 0;
+                    } else {
+                        val = parseInt(c.points);
+                    }
+                    total += val;
+                    detailsArr.push({ q: c.text, max: parseInt(c.points), score: val, note: note });
+                }
+                return { agentName, callId, score: total, details: JSON.stringify(detailsArr), feedback, callDate };
             } else {
-                return { agentName, callId, score: parseInt(document.getElementById('eval-manual-score').value), details: document.getElementById('eval-details').value, feedback };
+                const scoreEl = document.getElementById('eval-score');
+                const detailsEl = document.getElementById('eval-details');
+                const scoreVal = scoreEl ? parseInt(scoreEl.value) || 0 : (parseInt(evalData.score) || 0);
+                const detailsVal = detailsEl ? detailsEl.value : (evalData.details || '');
+                return { agentName, callId, score: scoreVal, details: detailsVal, feedback, callDate };
             }
         }
     });
+
     if (formValues) {
         Swal.fire({ title: 'Güncelleniyor...', didOpen: () => Swal.showLoading() });
         fetch(SCRIPT_URL, {
