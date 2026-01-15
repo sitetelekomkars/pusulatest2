@@ -157,12 +157,14 @@ function isAllowedByPerm(perm) {
     if (groups.length && groups.indexOf(grp) === -1) return false;
 
     // Rol filtresi sadece qusers için çalışsın
+    // Qusers kullanıcıları, sadece AllowedRoles içinde 'qusers' açıkça işaretlenmiş menüleri görebilsin.
     if (normalizeRole(role) === 'qusers') {
-        if (roles.length && roles.indexOf('qusers') === -1) return false;
+        if (!roles.length || roles.indexOf('qusers') === -1) return false;
     }
 
     return true;
 }
+
 function applyMenuPermissions() {
     try {
         const navButtons = document.querySelectorAll('[data-menu-key]');
@@ -698,36 +700,34 @@ function girisYap() {
         });
 }
 function checkAdmin(role) {
-    // Rolü normalize et (küçük harfe çevir)
-    const r = normalizeRole(role);
-
-    const addCardDropdown   = document.getElementById('dropdownAddCard');
-    const imageDropdown     = document.getElementById('dropdownImage');
+    const addCardDropdown = document.getElementById('dropdownAddCard');
+    const imageDropdown = document.getElementById('dropdownImage');
     const quickEditDropdown = document.getElementById('dropdownQuickEdit');
 
-    // admin / locadmin kontrolü artık case-insensitive
-    isAdminMode     = (r === "admin" || r === "locadmin");
-    isLocAdmin      = (r === "locadmin");
+    isAdminMode = (role === "admin" || role === "locadmin");
+    isLocAdmin = (role === "locadmin");
     isEditingActive = false;
     document.body.classList.remove('editing');
 
+    
     const filterButtons = document.querySelectorAll('.filter-btn:not(.btn-fav)');
     filterButtons.forEach(btn => {
         btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
         btn.style.filter = 'none';
     });
-
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        searchInput.disabled    = false;
+        searchInput.disabled = false;
         searchInput.placeholder = "İçeriklerde hızlı ara...";
         searchInput.style.opacity = '1';
     }
 
+    }
+
     if (isAdminMode) {
         if (addCardDropdown) addCardDropdown.style.display = 'flex';
-        if (imageDropdown)   imageDropdown.style.display   = 'flex';
+        if (imageDropdown) imageDropdown.style.display = 'flex';
         if (quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
             // İstek: Yetki Yönetimi sadece LocAdmin rolünde görünsün
@@ -737,8 +737,8 @@ function checkAdmin(role) {
             quickEditDropdown.classList.remove('active');
         }
     } else {
-        if (addCardDropdown)   addCardDropdown.style.display   = 'none';
-        if (imageDropdown)     imageDropdown.style.display     = 'none';
+        if (addCardDropdown) addCardDropdown.style.display = 'none';
+        if (imageDropdown) imageDropdown.style.display = 'none';
         if (quickEditDropdown) quickEditDropdown.style.display = 'none';
         const perms = document.getElementById('dropdownPerms');
         if (perms) perms.style.display = 'none';
