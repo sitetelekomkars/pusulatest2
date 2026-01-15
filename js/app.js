@@ -766,7 +766,7 @@ function checkAdmin(role) {
         const perms = document.getElementById('dropdownPerms');
         if (perms) perms.style.display = 'none';
     }
-}
+
 function logout() {
     currentUser = ""; isAdminMode = false; isEditingActive = false;
     try { document.getElementById("user-display").innerText = "Misafir"; } catch (e) { }
