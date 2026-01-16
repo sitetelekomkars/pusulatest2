@@ -53,7 +53,7 @@ function showGlobalError(message) {
 }
 
 // Apps Script URL'si
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbxt1GN8hhnrsDheB5a_xUn8r_RxjmqB-tulhOtRX6yhZB84zgb4li0J9oyE5fQSVEPE/exec"; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbx9LV5bCnRRu4sBx9z6mZqUiDCqRI3yJeh4td4ba1n8Zx4ebSRQ2FvtwSVEg4zsbVeZ/exec"; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
@@ -6026,7 +6026,7 @@ function __renderTechList(tabKey, items) {
     function render(filtered) {
         listEl.innerHTML = adminBar + filtered.map((it, idx) => {
             const body = [
-                it.icerik ? `<div class="q-doc-body">${it.icerik}</div>` : "",
+                it.icerik ? `<div class="q-doc-body" style="white-space: pre-line">${it.icerik}</div>` : "",
                 it.image ? `<div style="margin:10px 0;"><img src="${processImageUrl(it.image)}" loading="lazy" onerror="this.style.display='none'" style="max-width:100%; border-radius:8px; max-height:300px; object-fit:cover;"></div>` : "",
                 it.adim ? `<div class="q-doc-meta"><b>Adım:</b> ${__escapeHtml(it.adim)}</div>` : "",
                 it.not ? `<div class="q-doc-meta"><b>Not:</b> ${__escapeHtml(it.not)}</div>` : "",
