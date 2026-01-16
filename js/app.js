@@ -1433,7 +1433,7 @@ function openNews() {
         let passiveBadge = i.status === 'Pasif' ? '<span class="news-tag" style="background:#555; color:white;">PASİF</span>' : '';
         let editBtn = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" style="top:0; right:0; font-size:0.9rem; padding:4px;" onclick="event.stopPropagation(); editNews(${index})"></i>` : '';
         let imageHtml = i.image ? `<div style="margin:10px 0;"><img src="${processImageUrl(i.image)}" loading="lazy" onerror="this.style.display='none'" style="max-width:100%; border-radius:8px; max-height:300px; object-fit:cover;"></div>` : '';
-        c.innerHTML += `<div class="news-item" style="${passiveStyle}">${editBtn}<span class="news-date">${i.date}</span><span class="news-title">${i.title} ${passiveBadge}</span>${imageHtml}<div class="news-desc">${i.desc}</div><span class="news-tag ${cl}">${tx}</span></div>`;
+        c.innerHTML += `<div class="news-item" style="${passiveStyle}">${editBtn}<span class="news-date">${i.date}</span><span class="news-title">${i.title} ${passiveBadge}</span>${imageHtml}<div class="news-desc" style="white-space: pre-line">${i.desc}</div><span class="news-tag ${cl}">${tx}</span></div>`;
     });
 }
 
@@ -1715,7 +1715,7 @@ function openGuide() {
     sportsData.forEach((s, index) => {
         let pronHtml = s.pronunciation ? `<div class="pronunciation-badge"> 🗣️  ${s.pronunciation}</div>` : '';
         let editBtn = (isAdminMode && isEditingActive) ? `<i class="fas fa-pencil-alt edit-icon" style="top:5px; right:5px; z-index:50;" onclick="event.stopPropagation(); editSport('${escapeForJsString(s.title)}')"></i>` : '';
-        grid.innerHTML += `<div class="guide-item" onclick="showSportDetail(${index})">${editBtn}<i class="fas ${s.icon} guide-icon"></i><span class="guide-title">${s.title}</span>${pronHtml}<div class="guide-desc">${s.desc}</div><div class="guide-tip"><i class="fas fa-lightbulb"></i> ${s.tip}</div><div style="font-size:0.8rem; color:#999; margin-top:5px;">(Detay için tıkla)</div></div>`;
+        grid.innerHTML += `<div class="guide-item" onclick="showSportDetail(${index})">${editBtn}<i class="fas ${s.icon} guide-icon"></i><span class="guide-title">${s.title}</span>${pronHtml}<div class="guide-desc" style="white-space: pre-line">${s.desc}</div><div class="guide-tip"><i class="fas fa-lightbulb"></i> ${s.tip}</div><div style="font-size:0.8rem; color:#999; margin-top:5px;">(Detay için tıkla)</div></div>`;
     });
 }
 function showSportDetail(index) {
@@ -4468,7 +4468,7 @@ function renderHomePanels() {
                 <div class="home-mini-item">
                   <div class="home-mini-date">${escapeHtml(n.date || '')}</div>
                   <div class="home-mini-title">${escapeHtml(n.title || '')}</div>
-                  <div class="home-mini-desc">${escapeHtml(String(n.desc || '')).slice(0, 160)}${(n.desc || '').length > 160 ? '...' : ''}</div>
+                  <div class="home-mini-desc" style="white-space: pre-line">${escapeHtml(String(n.desc || '')).slice(0, 160)}${(n.desc || '').length > 160 ? '...' : ''}</div>
                 </div>
             `).join('');
         }
