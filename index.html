@@ -71,8 +71,9 @@
           </div>
         </div>
         <div class="control-wrapper">
-          <div class="search-container"><i class="fas fa-search search-icon" aria-hidden="true"></i><input type="text"
-              id="searchInput" placeholder="İçeriklerde hızlı ara..." onkeyup="filterContent()">
+          <div class="search-container" data-menu-key="search"><i class="fas fa-search search-icon"
+              aria-hidden="true"></i><input type="text" id="searchInput" placeholder="İçeriklerde hızlı ara..."
+              onkeyup="filterContent()">
             <div id="searchResultCount" role="status" aria-live="polite"
               style="display:none;margin-top:6px;font-size:0.8rem;color:#777"></div>
           </div>
@@ -109,7 +110,7 @@
           </div>
         </div>
       </div>
-      <div id="global-news-ticker" class="news-ticker-box" onclick="openNews()">
+      <div id="global-news-ticker" class="news-ticker-box" data-menu-key="news" onclick="openNews()">
         <div class="ticker-label"><span class="pulse-dot"></span>DUYURU</div>
         <div class="ticker-scroll-wrapper">
           <div id="ticker-content" class="ticker-content">Duyurular yükleniyor...</div>
@@ -124,13 +125,16 @@
             <div class="home-hero-sub">Güncel duyurular, hızlı erişim ve anlık bilgiler burada.</div>
           </div>
           <div class="home-hero-actions">
-            <button class="home-pill" onclick="openNews()"><i class="fas fa-bullhorn" aria-hidden="true"></i>
+            <button class="home-pill" data-menu-key="news" onclick="openNews()"><i class="fas fa-bullhorn"
+                aria-hidden="true"></i>
               Duyurular</button>
-            <button class="home-pill" onclick="openGuide()"><i class="fas fa-book" aria-hidden="true"></i> Spor
+            <button class="home-pill" data-menu-key="guide" onclick="openGuide()"><i class="fas fa-book"
+                aria-hidden="true"></i> Spor
               Rehberi</button>
-            <button class="home-pill" onclick="openBroadcastFlow()"><i class="fas fa-calendar-alt"
-                aria-hidden="true"></i> Yayın Akışı</button>
-            <button class="home-pill" onclick="openQualityArea()"><i class="fas fa-chart-pie" aria-hidden="true"></i>
+            <button class="home-pill" data-menu-key="broadcast" onclick="openBroadcastFlow()"><i
+                class="fas fa-calendar-alt" aria-hidden="true"></i> Yayın Akışı</button>
+            <button class="home-pill" data-menu-key="quality" onclick="openQualityArea()"><i class="fas fa-chart-pie"
+                aria-hidden="true"></i>
               Kalite</button>
           </div>
         </div>
@@ -203,7 +207,8 @@
         style="background-color:#eaeaea;padding:10px 25px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ccc">
         <button id="tw-btn-back" class="btn btn-copy" style="background:#6c757d;color:#fff;display:none"
           onclick="twGoBack()">⬅ Önceki Adım</button><button class="btn btn-copy" style="background:#d32f2f;color:#fff"
-          onclick="twResetWizard()">↻ Ba ş a D ö n</button></div>
+          onclick="twResetWizard()">↻ Ba ş a D ö n</button>
+      </div>
       <div id="tech-wizard-content" style="padding:30px;overflow-y:auto;max-height:60vh"></div>
     </div>
   </div>
@@ -465,7 +470,8 @@
               <option value="all">Tüm Gruplar</option>
             </select><select id="q-feedback-agent" onchange="refreshFeedbackData()" style="width:130px">
               <option value="all">Tüm Temsilciler</option>
-            </select></div><button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none"
+            </select>
+          </div><button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none"
             onclick="addManualFeedbackPopup()"><i class="fas fa-plus-circle" aria-hidden="true"></i>Geri Bildirim
             Ekle</button>
         </div>
