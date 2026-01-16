@@ -85,7 +85,7 @@ let firstAnswerIndex = -1;
 const VALID_CATEGORIES = ['Teknik', 'İkna', 'Kampanya', 'Bilgi'];
 const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 // --- GLOBAL DEĞİŞKENLER ---
-let database = [], cardsData = [], newsData = [], sportsData = [], salesScripts = [], quizQuestions = [], quickDecisionQuestions = [];
+let database = [], newsData = [], sportsData = [], salesScripts = [], quizQuestions = [], quickDecisionQuestions = [];
 
 // Data load barrier (prevents Tech/Telesales first-render flicker)
 let __dataLoadedResolve;
@@ -458,6 +458,20 @@ function formatDateToDDMMYYYY(dateString) {
         const year = date.getFullYear();
         return `${day}.${month}.${year}`;
     } catch (e) { return dateString; }
+}
+
+function processImageUrl(url) {
+    if (!url) return '';
+    // Drive linki düzeltme: /d/ID veya id=ID -> thumbnail?sz=w1000
+    try {
+        let id = '';
+        const m = url.match(/\/d\/([-\w]+)/) || url.match(/id=([-\w]+)/);
+        if (m && m[1]) id = m[1];
+        if (id && url.includes('drive.google.com')) {
+            return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1000';
+        }
+    } catch (e) { }
+    return url;
 }
 
 function parseDateTRToTS(s) {
@@ -848,7 +862,7 @@ function processRawData(rawData) {
     newsData.sort((a, b) => parseDateTRToTS(b.date) - parseDateTRToTS(a.date));
     try { applySportsRights(); } catch (e) { }
 
-    cardsData = database; // Legacy support
+    // cardsData alias removed
 
     if (currentCategory === 'fav') { filterCategory(document.querySelector('.btn-fav'), 'fav'); }
     else {
@@ -1443,20 +1457,7 @@ function openNews() {
 // ✅ Yayın Akışı (E-Tablo'dan)
 // =========================
 async function fetchBroadcastFlow() {
-    const r = await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-            action: "getBroadcastFlow",
-            username: (typeof currentUser !== "undefined" ? currentUser : ""),
-            token: (typeof getToken === "function" ? getToken() : "")
-        })
-    });
-
-    const d = await r.json();
-    if (!d || d.result !== "success") {
-        throw new Error((d && d.message) ? d.message : "Yayın akışı alınamadı.");
-    }
+    const d = await apiCall("getBroadcastFlow");
     return d.items || [];
 }
 
@@ -1944,7 +1945,7 @@ function resetQuickDecision() {
 }
 
 function startQuickDecision() {
-    const bank = Array.isArray(quickDecisionQuestions) ? quickDecisionQuestions : [];
+    const bank = (Array.isArray(quickDecisionQuestions) && quickDecisionQuestions.length) ? quickDecisionQuestions : QUICK_DECISION_BANK;
     if (!bank.length) {
         Swal.fire('Bilgi', 'Sorular henüz yüklenmedi. Lütfen admin panelden soruları ekleyin ve sayfayı yenileyin.', 'info');
         return;
@@ -2024,7 +2025,7 @@ function answerQuick(idx) {
         title: correct ? 'Doğru seçim!' : 'Yanlış seçim',
         text: q.exp,
         showConfirmButton: false,
-        timer: 1800
+        timer: 1100
     });
 
     setTimeout(() => {
@@ -4547,7 +4548,7 @@ function editHomeBlock(kind) {
 
 // Kart detayını doğrudan açmak için küçük bir yardımcı
 function openCardDetail(cardId) {
-    const card = (cardsData || []).find(x => String(x.id) === String(cardId));
+    const card = (database || []).find(x => String(x.id) === String(cardId));
     if (!card) { Swal.fire('Hata', 'Kart bulunamadı.', 'error'); return; }
     showCardDetail(card);
 }
@@ -4561,14 +4562,7 @@ function safeGetToken() {
     try { return (typeof getToken === 'function') ? getToken() : ''; } catch (e) { return ''; }
 }
 async function fetchSheetObjects(actionName) {
-    const payload = { action: actionName, username: (currentUser || ''), token: safeGetToken() };
-    const r = await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-    });
-    const d = await r.json();
-    if (!d || d.result !== "success") throw new Error((d && d.message) ? d.message : "Veri alınamadı.");
+    const d = await apiCall(actionName);
     // backend handleFetchData returns {data:[...]} ; other handlers may use {items:[...]}
     return d.data || d.items || [];
 }
@@ -4596,19 +4590,12 @@ async function maybeLoadTelesalesScriptsFromSheet() {
     }
 }
 
-async function syncTelesalesScriptsToSheet(arr) {
-    // Backend desteği varsa Sheets'e yaz; yoksa sessizce local'de kalsın.
-    try {
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'saveTelesalesScripts', username: (currentUser || ''), token: safeGetToken(), scripts: arr || [] })
-        }).then(r => r.json()).then(d => {
-            if (!d || d.result !== 'success') throw new Error(d && d.message ? d.message : 'fail');
-        });
-    } catch (e) {
-        // sessiz fallback
-    }
+// Backend desteği varsa Sheets'e yaz; yoksa sessizce local'de kalsın.
+try {
+    await apiCall('saveTelesalesScripts', { scripts: arr || [] });
+} catch (e) {
+    // sessiz fallback
+}
 }
 
 async function openTelesalesArea() {
@@ -5136,24 +5123,11 @@ function switchShiftTab(tab) {
 
 async function loadShiftData() {
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "getShiftData",
-                username: currentUser,
-                token: getToken()
-            })
-        });
-        const data = await response.json();
-        if (data.result !== "success") {
-            Swal.fire('Hata', data.message || 'Vardiya verileri alınamadı.', 'error');
-            return;
-        }
+        const data = await apiCall("getShiftData");
         renderShiftData(data.shifts || {});
     } catch (e) {
         console.error(e);
-        Swal.fire('Hata', 'Vardiya verileri alınırken bir hata oluştu.', 'error');
+        Swal.fire('Hata', e.message || 'Vardiya verileri alınırken bir hata oluştu.', 'error');
     }
 }
 
@@ -5249,35 +5223,23 @@ async function submitShiftRequest(evt) {
     }
 
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "submitShiftRequest",
-                username: currentUser,
-                token: getToken(),
-                date: date,
-                type: type,
-                current: current,
-                requested: requested,
-                friend: friend,
-                friendShift: friendShift,
-                note: note,
-                week: document.getElementById('shift-week-label') ? document.getElementById('shift-week-label').textContent : ''
-            })
+        const data = await apiCall("submitShiftRequest", {
+            date: date,
+            type: type,
+            current: current,
+            requested: requested,
+            friend: friend,
+            friendShift: friendShift,
+            note: note,
+            week: document.getElementById('shift-week-label') ? document.getElementById('shift-week-label').textContent : ''
         });
-        const data = await response.json();
-        if (data.result === "success") {
-            Swal.fire({ icon: 'success', title: 'Kaydedildi', text: 'Vardiya talebin kaydedildi.', timer: 1500, showConfirmButton: false });
-            const form = document.getElementById('shift-request-form');
-            if (form) form.reset();
-            await loadShiftData();
-        } else {
-            Swal.fire('Hata', data.message || 'Talep kaydedilemedi.', 'error');
-        }
+        Swal.fire({ icon: 'success', title: 'Kaydedildi', text: 'Vardiya talebin kaydedildi.', timer: 1500, showConfirmButton: false });
+        const form = document.getElementById('shift-request-form');
+        if (form) form.reset();
+        await loadShiftData();
     } catch (e) {
         console.error(e);
-        Swal.fire('Hata', 'Talep kaydedilirken bir hata oluştu.', 'error');
+        Swal.fire('Hata', e.message || 'Talep kaydedilemedi.', 'error');
     }
 }
 
@@ -5929,29 +5891,11 @@ function __normalizeTechCategory(cat) {
     return "";
 }
 
-function processImageUrl(url) {
-    if (!url) return '';
-    let id = '';
-    const m = url.match(/\/d\/([-\w]+)/) || url.match(/id=([-\w]+)/);
-    if (m && m[1]) id = m[1];
-    if (id && url.includes('drive.google.com')) {
-        return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1000';
-    }
-    return url;
-}
+
 
 async function __fetchTechDocs() {
-    if (!SCRIPT_URL) {
-        if (typeof showGlobalError === "function") showGlobalError("SCRIPT_URL ayarlı değil. Sağ alttan ayarlayabilirsin.");
-        throw new Error("SCRIPT_URL missing");
-    }
-    const res = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "getTechDocs" })
-    });
-    const data = await res.json();
-    if (data.result !== "success") throw new Error(data.message || "getTechDocs failed");
+    if (!SCRIPT_URL) throw new Error("SCRIPT_URL missing");
+    const data = await apiCall("getTechDocs");
     const rows = Array.isArray(data.data) ? data.data : [];
     return rows
         .filter(r => (r.Durum || "").toString().trim().toLowerCase() !== "pasif")
@@ -5995,11 +5939,7 @@ async function getTechDocCategoryOptions(force = false) {
     return cats;
 }
 
-function __escapeHtml(s) {
-    return (s || "").toString().replace(/[&<>"']/g, m => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-    }[m]));
-}
+
 
 function __renderTechList(tabKey, items) {
     const listEl = document.getElementById(
@@ -6029,9 +5969,9 @@ function __renderTechList(tabKey, items) {
             const body = [
                 it.icerik ? `<div class="q-doc-body" style="white-space: pre-line">${it.icerik}</div>` : "",
                 it.image ? `<div style="margin:10px 0;"><img src="${processImageUrl(it.image)}" loading="lazy" onerror="this.style.display='none'" style="max-width:100%; border-radius:8px; max-height:300px; object-fit:cover;"></div>` : "",
-                it.adim ? `<div class="q-doc-meta" style="white-space: pre-line"><b>Adım:</b> ${__escapeHtml(it.adim)}</div>` : "",
-                it.not ? `<div class="q-doc-meta" style="white-space: pre-line"><b>Not:</b> ${__escapeHtml(it.not)}</div>` : "",
-                it.link ? `<div class="q-doc-meta"><b>Link:</b> <a href="${__escapeHtml(it.link)}" target="_blank">${__escapeHtml(it.link)}</a></div>` : ""
+                it.adim ? `<div class="q-doc-meta" style="white-space: pre-line"><b>Adım:</b> ${escapeHtml(it.adim)}</div>` : "",
+                it.not ? `<div class="q-doc-meta" style="white-space: pre-line"><b>Not:</b> ${escapeHtml(it.not)}</div>` : "",
+                it.link ? `<div class="q-doc-meta"><b>Link:</b> <a href="${escapeHtml(it.link)}" target="_blank">${escapeHtml(it.link)}</a></div>` : ""
             ].join("");
             const adminBtns = (isAdminMode && isEditingActive)
                 ? `<span style="float:right;display:inline-flex;gap:8px" onclick="event.stopPropagation();event.preventDefault();">
@@ -6041,7 +5981,7 @@ function __renderTechList(tabKey, items) {
                 : ``;
             return `
         <details class="q-accordion" style="margin-bottom:10px;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.08);padding:10px 12px">
-          <summary style="cursor:pointer;font-weight:800">${__escapeHtml(it.baslik)}${adminBtns}</summary>
+          <summary style="cursor:pointer;font-weight:800">${escapeHtml(it.baslik)}${adminBtns}</summary>
           <div style="padding:10px 2px 2px 2px">${body}</div>
         </details>
       `;
@@ -6310,19 +6250,7 @@ window.switchTechTab = async function (tab) {
 // expose for onclick
 try { window.openMenuPermissions = openMenuPermissions; } catch (e) { }
 
-function processImageUrl(url) {
-    if (!url) return '';
-    try {
-        // Drive linki düzeltme: uc?export=view -> thumbnail?sz=w800
-        if (url.indexOf('drive.google.com') > -1 && url.indexOf('id=') > -1) {
-            const match = url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`;
-            }
-        }
-    } catch (e) { }
-    return url;
-}
+
 
 // --- GÖRSEL YÜKLEME ARACI (Admin/LocAdmin) ---
 function openImageUploader() {
