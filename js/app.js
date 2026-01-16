@@ -132,10 +132,9 @@ function normalizeGroup(v) {
         .replaceAll('ü', 'u').replaceAll('Ü', 'u')
         .replaceAll('ö', 'o').replaceAll('Ö', 'o')
         .replaceAll('ç', 'c').replaceAll('Ç', 'c');
-    // map common variants to display names used in permissions table
-    if (tr.includes('telesat')) return 'Telesatış';
-    if (tr.includes('chat')) return 'Chat';
-    if (tr.includes('yonetim')) return 'Yönetim';
+
+    // Sistem artık dinamik olduğu için sabit eşlemelere gerek yok.
+    // Sadece ilk harfi büyüterek estetik bir isim döndürelim.
     return tr.charAt(0).toUpperCase() + tr.slice(1);
 }
 
