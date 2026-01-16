@@ -1,3 +1,5 @@
+
+
 function formatWeekLabel(raw) {
     try {
         if (!raw) return '';
@@ -57,10 +59,14 @@ let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.go
 async function apiCall(action, payload = {}) {
     const username = (typeof currentUser !== "undefined" && currentUser) ? currentUser : (localStorage.getItem("sSportUser") || "");
     const token = (typeof getToken === "function" ? getToken() : localStorage.getItem("sSportToken")) || "";
+
+    // IP adresini her API çağrısında gönder
+    const ip = globalUserIP || "";
+
     const res = await fetch(SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action, username, token, ...payload })
+        body: JSON.stringify({ action, username, token, ip, ...payload })
     });
     const json = await res.json();
     if (json.result !== "success") throw new Error(json.message || json.error || "API error");
@@ -542,10 +548,10 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 document.onkeydown = function (e) { if (e.keyCode == 123) return false; }
 document.addEventListener('DOMContentLoaded', () => {
     checkSession();
-    // IP Fetch
-    fetch('https://api.ipify.org?format=json')
+    // IP Fetch (Konum destekli)
+    fetch('https://ipapi.co/json/')
         .then(r => r.json())
-        .then(d => { globalUserIP = d.ip; })
+        .then(d => { globalUserIP = `${d.ip} [${d.city || '-'}, ${d.region || '-'}]`; })
         .catch(() => { });
 });
 // --- SESSION & LOGIN ---
@@ -620,7 +626,7 @@ function checkSession() {
     }
 }
 function enterBas(e) { if (e.key === "Enter") girisYap(); }
-function girisYap() {
+async function girisYap() {
     const uName = document.getElementById("usernameInput").value.trim();
     const uPass = document.getElementById("passInput").value.trim();
     const loadingMsg = document.getElementById("loading-msg");
@@ -631,6 +637,18 @@ function girisYap() {
     loadingMsg.innerText = "Doğrulanıyor...";
     errorMsg.style.display = "none";
     document.querySelector('.login-btn').disabled = true;
+
+    // IP adresini al (henüz alınmadıysa)
+    if (!globalUserIP) {
+        try {
+            const ipResponse = await fetch('https://ipapi.co/json/');
+            const ipData = await ipResponse.json();
+            globalUserIP = `${ipData.ip} [${ipData.city || '-'}, ${ipData.region || '-'}]`;
+        } catch (e) {
+            // IP alınamazsa boş bırak
+            globalUserIP = "";
+        }
+    }
 
     const hashedPass = CryptoJS.SHA256(uPass).toString();
     fetch(SCRIPT_URL, {
