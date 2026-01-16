@@ -306,6 +306,7 @@ function openMenuPermissions() {
     });
 }
 // --------------------------------------------------------------------
+let activeRole = "";
 let isAdminMode = false;
 let isLocAdmin = false;
 let isEditingActive = false;
@@ -615,14 +616,7 @@ function checkSession() {
             loadWizardData();
             loadTechWizardData();
 
-            // Eğer qusers rolündeyse, ana içeriği gizle ve kalite modülünü aç
-            if (savedRole === 'qusers') {
-                const grid = document.getElementById('cardGrid'); if (grid) grid.style.display = 'none';
-                const controls = document.querySelector('.control-wrapper'); if (controls) controls.style.display = 'none';
-                const ticker = document.querySelector('.news-ticker-box'); if (ticker) ticker.style.display = 'none';
-
-                openQualityArea(); // Yeni Full Screen Modül
-            }
+            // qusers auto-open kaldırıldı (istek üzerine)
         }
     }
 }
@@ -698,12 +692,7 @@ async function girisYap() {
                         loadWizardData();
                         loadTechWizardData();
 
-                        if (savedRole === 'qusers') {
-                            const grid = document.getElementById('cardGrid'); if (grid) grid.style.display = 'none';
-                            const controls = document.querySelector('.control-wrapper'); if (controls) controls.style.display = 'none';
-                            const ticker = document.querySelector('.news-ticker-box'); if (ticker) ticker.style.display = 'none';
-                            openQualityArea();
-                        }
+                        // qusers auto-open kaldırıldı
                     }
                 }
             } else {
@@ -722,6 +711,7 @@ function checkAdmin(role) {
     const imageDropdown = document.getElementById('dropdownImage');
     const quickEditDropdown = document.getElementById('dropdownQuickEdit');
 
+    activeRole = role;
     isAdminMode = (role === "admin" || role === "locadmin");
     isLocAdmin = (role === "locadmin");
     isEditingActive = false;
@@ -6498,8 +6488,8 @@ async function openMenuPermissions() {
 
         allRolePermissions = res.permissions || [];
 
-        // Düzenlenebilir roller (LocAdmin kendini düzenleyemez, o her zaman tam yetkilidir)
-        const roles = ["admin", "qusers", "users"];
+        // Düzenlenebilir roller + Takımlar
+        const roles = ["admin", "qusers", "users", "chat", "telesatış", "teknik"];
         let activeTabIndex = 0;
 
         const renderRbacContent = (roleIndex) => {
@@ -6517,6 +6507,7 @@ async function openMenuPermissions() {
                 },
                 {
                     cat: "Sayfa Erişimi", items: [
+                        { key: "home", label: "Ana Sayfa (Kartlar)", perms: ["View"] },
                         { key: "tech", label: "Teknik Sayfası", perms: ["View"] },
                         { key: "telesales", label: "TeleSatış Sayfası", perms: ["View"] },
                         { key: "kalite", label: "Kalite Paneli", perms: ["View"] },
@@ -6649,15 +6640,27 @@ async function openMenuPermissions() {
  * LocAdmin her zaman true döner.
  */
 function hasPerm(resource, permission = "All") {
-    if (activeRole === "locadmin") return true;
+    const role = getMyRole();
+    const group = normalizeGroup(localStorage.getItem("sSportGroup") || "").toLowerCase();
 
-    const perm = allRolePermissions.find(p =>
-        p.role === activeRole &&
+    if (role === "locadmin") return true;
+
+    // 1. Önce grup (takım) bazlı yetkiye bak (Daha spesifik)
+    const groupPerm = allRolePermissions.find(p =>
+        p.role === group &&
+        (p.resource === resource || p.resource === "All") &&
+        (p.permission === permission || p.permission === "All")
+    );
+    if (groupPerm) return groupPerm.value;
+
+    // 2. Eğer grupta tanımlı değilse, role bak
+    const rolePerm = allRolePermissions.find(p =>
+        p.role === role &&
         (p.resource === resource || p.resource === "All") &&
         (p.permission === permission || p.permission === "All")
     );
 
-    return perm ? perm.value : false;
+    return rolePerm ? rolePerm.value : false;
 }
 
 // Login sonrası yetkileri arka planda yükle
@@ -6674,7 +6677,8 @@ async function loadPermissionsOnStartup() {
  * Kaydedilen yetkilere göre arayüzdeki butonları gizle/göster
  */
 function applyPermissionsToUI() {
-    if (activeRole === "locadmin") return;
+    const role = getMyRole();
+    if (role === "locadmin") return;
 
     const editBtn = document.getElementById('dropdownQuickEdit');
     if (editBtn && !hasPerm("EditMode")) editBtn.style.display = 'none';
@@ -6702,8 +6706,11 @@ function applyPermissionsToUI() {
 
     Object.keys(menuMap).forEach(key => {
         const btn = document.querySelector(`[data-menu-key="${key}"]`);
+        // Özel Durum: Ana sayfa butonu home keyine bakıyor
         if (btn && !hasPerm(menuMap[key], "View")) {
             btn.style.display = 'none';
+        } else if (btn) {
+            btn.style.display = ''; // Yetki varsa geri getir
         }
     });
 }
