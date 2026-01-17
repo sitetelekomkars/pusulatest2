@@ -587,6 +587,13 @@ function checkSession() {
 
         checkAdmin(savedRole);
 
+        // ✅ Zorunlu şifre değişimi kontrolü (Sayfa yenilense de kaçamaz)
+        if (localStorage.getItem("sSportForceChange") === "true") {
+            changePasswordPopup(true);
+            return;
+        }
+
+
         try {
             if (savedGroup) {
                 const el = document.getElementById("t-side-role"); if (el) el.textContent = savedGroup;
@@ -658,14 +665,15 @@ async function girisYap() {
                 localStorage.setItem("sSportSessionDay", new Date().toISOString().slice(0, 10));
                 localStorage.setItem("sSportLoginAt", String(Date.now()));
 
-                const savedRole = data.role;
                 if (data.forceChange === true) {
+                    localStorage.setItem("sSportForceChange", "true"); // Bayrağı sakla
                     Swal.fire({
                         icon: 'warning', title: ' ⚠️  Güvenlik Uyarısı',
                         text: 'İlk girişiniz. Lütfen şifrenizi değiştirin.',
                         allowOutsideClick: false, allowEscapeKey: false, confirmButtonText: 'Şifremi Değiştir'
                     }).then(() => { changePasswordPopup(true); });
                 } else {
+                    localStorage.removeItem("sSportForceChange"); // Tedbir amaçlı sil
                     document.getElementById("login-screen").style.display = "none";
                     document.getElementById("user-display").innerText = currentUser;
                     setHomeWelcomeUser(currentUser);
@@ -681,11 +689,12 @@ async function girisYap() {
                         document.getElementById("maintenance-screen").style.display = "flex";
                     } else {
                         document.getElementById("main-app").style.display = "block";
-                        loadContentData();
-                        loadWizardData();
-                        loadTechWizardData();
-
-                        // qusers auto-open kaldırıldı
+                        // ✅ YENİ: Veri yüklemeden önce yetkileri yükle ve bekle
+                        loadPermissionsOnStartup().then(() => {
+                            loadContentData();
+                            loadWizardData();
+                            loadTechWizardData();
+                        });
                     }
                 }
             } else {
@@ -695,8 +704,9 @@ async function girisYap() {
         }).catch(error => {
             loadingMsg.style.display = "none";
             document.querySelector('.login-btn').disabled = false;
-            errorMsg.innerText = "Sunucu hatası! Lütfen sayfayı yenileyin.";
+            errorMsg.innerText = "Bağlantı sorunu veya sunucu hatası! Lütfen internetinizi kontrol edip sayfayı yenileyin.";
             errorMsg.style.display = "block";
+            console.error("Login error:", error);
         });
 }
 function checkAdmin(role) {
@@ -747,6 +757,7 @@ function logout() {
     setHomeWelcomeUser("Misafir");
     document.body.classList.remove('editing');
     localStorage.removeItem("sSportUser"); localStorage.removeItem("sSportToken"); localStorage.removeItem("sSportRole"); localStorage.removeItem("sSportGroup"); localStorage.removeItem("sSportSessionDay"); localStorage.removeItem("sSportLoginAt");
+    localStorage.removeItem("sSportForceChange"); // Bayrağı temizle
     if (sessionTimeout) clearTimeout(sessionTimeout);
     document.getElementById("main-app").style.display = "none";
     document.getElementById("login-screen").style.display = "flex";
@@ -793,6 +804,7 @@ async function changePasswordPopup(isMandatory = false) {
             })
         }).then(response => response.json()).then(data => {
             if (data.result === "success") {
+                localStorage.removeItem("sSportForceChange"); // Başarılı olunca bayrağı kaldır
                 Swal.fire('Başarılı!', 'Şifreniz güncellendi. Yeniden giriş yapınız.', 'success').then(() => { logout(); });
             } else {
                 Swal.fire('Hata', data.message || 'İşlem başarısız.', 'error').then(() => { if (isMandatory) changePasswordPopup(true); });
@@ -4089,7 +4101,15 @@ function fetchUserListForAdmin() {
             method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({ action: "getUserList", username: currentUser, token: getToken() })
         }).then(response => response.json()).then(data => {
-            if (data.result === "success") { adminUserList = data.users.filter(u => u.group !== 'Yönetim'); resolve(adminUserList); }
+            if (data.result === "success") {
+                // Sadece rütbesi 'user' veya 'qusers' olanları (temsilcileri) göster
+                // Yönetim grubunu ve Admin/LocAdmin rütbelerini listeden temizle
+                adminUserList = data.users.filter(u => {
+                    const r = String(u.role || '').toLowerCase().trim();
+                    return (r === 'user' || r === 'qusers') && u.group !== 'Yönetim';
+                });
+                resolve(adminUserList);
+            }
             else resolve([]);
         }).catch(err => resolve([]));
     });
