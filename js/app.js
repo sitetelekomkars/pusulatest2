@@ -98,9 +98,6 @@ let techWizardData = {}; // Teknik Sihirbaz Verisi
 let currentUser = "";
 let globalUserIP = "";
 
-// -------------------- Menu Permissions (LocAdmin) --------------------
-let menuPermissions = null; // { key: {allowedGroups:[], allowedRoles:[]} }
-
 // -------------------- HomeBlocks (Ana Sayfa blok içerikleri) --------------------
 let homeBlocks = {}; // { quote:{...}, ... }
 
@@ -142,165 +139,7 @@ function normalizeList(v) {
 function getMyGroup() { return normalizeGroup(localStorage.getItem("sSportGroup") || ""); }
 function getMyRole() { return normalizeRole(localStorage.getItem("sSportRole") || ""); }
 
-function isAllowedByPerm(perm) {
-    if (!perm) return true;
-    if (perm.enabled === false) return false;
-    const role = getMyRole(), grp = getMyGroup();
-    const roles = perm.allowedRoles || [];
-    let groups = perm.allowedGroups || [];
-    // "ALL" varsa herkese açık kabul et
-    if (groups.indexOf("ALL") > -1) groups = [];
-    if (roles.length && roles.indexOf(role) === -1) return false;
-    if (groups.length && groups.indexOf(grp) === -1) return false;
-    return true;
-}
-function applyMenuPermissions() {
-    try {
-        const navButtons = document.querySelectorAll('[data-menu-key]');
-        navButtons.forEach(btn => {
-            const key = btn.getAttribute('data-menu-key');
-            const perm = menuPermissions && menuPermissions[key];
-            btn.style.display = isAllowedByPerm(perm) ? '' : 'none';
-        });
-        // Hızlı kısayollar (ana sayfa)
-        document.querySelectorAll('[data-shortcut-key]').forEach(el => {
-            const key = el.getAttribute('data-shortcut-key');
-            const perm = menuPermissions && menuPermissions[key];
-            el.style.display = isAllowedByPerm(perm) ? '' : 'none';
-        });
-    } catch (e) { }
-}
-function loadMenuPermissions() {
-    // herkes için okunabilir
-    return apiCall("getMenuPermissions", {}).then(res => {
-        if (res && res.result === "success") {
-            menuPermissions = {};
-            (res.items || []).forEach(it => {
-                menuPermissions[it.key] = {
-                    allowedGroups: normalizeList(it.allowedGroups),
-                    enabled: (it.enabled === false || String(it.enabled).toUpperCase() === "FALSE") ? false : true,
-                    allowedRoles: normalizeList(it.allowedRoles) // backward-compat if still present
-                };
-            });
-            applyMenuPermissions();
-        }
-    }).catch(() => { });
-}
 
-// LocAdmin panel
-function openMenuPermissions() {
-    const role = getMyRole();
-    // İstek: Yetki Yönetimi sadece LocAdmin rolünde görünsün ve çalışsın
-    if (role !== "locadmin") {
-        Swal.fire("Yetkisiz", "Yetki Yönetimi sadece LocAdmin rolünde kullanılabilir.", "warning");
-        return;
-    }
-    apiCall("getMenuPermissions", {}).then(res => {
-        if (!res || res.result !== "success") {
-            Swal.fire("Hata", "Yetkiler okunamadı", "error");
-            return;
-        }
-
-        // Grupları backend'den al, yoksa items içinden türet
-        let groups = (res.groups || []).map(g => String(g || "").trim()).filter(Boolean);
-        if (!groups.length) {
-            const set = new Set();
-            (res.items || []).forEach(it => {
-                normalizeList(it.allowedGroups).forEach(g => {
-                    const gg = String(g || "").trim();
-                    if (gg && gg.toUpperCase() !== "ALL") set.add(gg);
-                });
-            });
-            groups = [...set];
-        }
-        // Hepsini baş harf büyüt, yaygın isimleri normalize et
-        const normMap = { "chat": "Chat", "telesatış": "Telesatış", "telesatis": "Telesatış", "yönetim": "Yönetim", "yonetim": "Yönetim", "teknik": "Teknik" };
-        groups = groups.map(g => {
-            const k = g.toLowerCase();
-            return normMap[k] || (g.charAt(0).toUpperCase() + g.slice(1));
-        });
-
-        const menus = (res.items || []);
-
-        const rowsHtml = menus.map(m => {
-            const allowed = normalizeList(m.allowedGroups);
-            const enabled = !(m.enabled === false || String(m.enabled).toUpperCase() === "FALSE");
-            const cells = groups.map(g => {
-                const checked = (allowed.length === 0 || allowed.indexOf("ALL") > -1) ? true : (allowed.indexOf(g) > -1);
-                return `<td style="text-align:center">
-          <input type="checkbox" data-mk="${m.key}" data-g="${g}" ${checked ? 'checked' : ''}/>
-        </td>`;
-            }).join('');
-            return `<tr>
-        <td style="font-weight:600">${escapeHtml(m.title || m.label || m.key)}</td>
-        <td style="text-align:center"><input type="checkbox" data-enabled="${m.key}" ${enabled ? 'checked' : ''}/></td>
-        ${cells}
-      </tr>`;
-        }).join('');
-
-        const tableHtml = `
-      <div style="text-align:left;margin-bottom:10px;color:#444">
-        Menü/sekme bazlı “hangi grup görsün” ayarı. İşaretli olmayan gruplar menüyü görmez.
-      </div>
-      <div style="max-height:420px;overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:12px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead style="position:sticky;top:0;background:#f7f7f7;z-index:1">
-            <tr>
-              <th style="text-align:left;padding:12px">Menü</th>
-              <th style="text-align:center;padding:12px;width:90px">Aktif</th>
-              ${groups.map(g => `<th style="text-align:center;padding:12px">${escapeHtml(g)}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-      </div>`;
-
-        Swal.fire({
-            title: "Yetki Yönetimi",
-            html: tableHtml,
-            width: 980,
-            showCancelButton: true,
-            confirmButtonText: "Kaydet",
-            cancelButtonText: "Vazgeç",
-            preConfirm: () => {
-                const out = {};
-                menus.forEach(m => { out[m.key] = { allowedGroups: [], enabled: true }; });
-                // enabled
-                document.querySelectorAll('input[type="checkbox"][data-enabled]').forEach(cb => {
-                    const k = cb.getAttribute('data-enabled');
-                    if (out[k]) out[k].enabled = !!cb.checked;
-                });
-                // groups
-                document.querySelectorAll('input[type="checkbox"][data-mk]').forEach(cb => {
-                    const k = cb.getAttribute('data-mk');
-                    const g = cb.getAttribute('data-g');
-                    if (cb.checked && out[k]) out[k].allowedGroups.push(g);
-                });
-                // Hepsi seçiliyse "ALL" olarak yaz (daha temiz)
-                Object.keys(out).forEach(k => {
-                    const arr = out[k].allowedGroups || [];
-                    if (arr.length === groups.length) {
-                        out[k].allowedGroups = ["ALL"];
-                    }
-                });
-                return out;
-            }
-        }).then(r => {
-            if (!r.isConfirmed) return;
-            const payload = r.value || {};
-            apiCall("setMenuPermissions", { items: payload }).then(sv => {
-                if (sv && sv.result === "success") {
-                    Swal.fire("Kaydedildi", "Yetkiler güncellendi.", "success");
-                    loadMenuPermissions();
-                } else {
-                    Swal.fire("Hata", (sv && sv.message) || "Kaydedilemedi", "error");
-                }
-            });
-        });
-    });
-}
 // --------------------------------------------------------------------
 let activeRole = "";
 let isAdminMode = false;
@@ -606,7 +445,6 @@ function checkSession() {
         startSessionTimer();
 
         // ✅ YENİ: Yenilemede de menü/blok yetkilerini uygula
-        try { loadMenuPermissions(); } catch (e) { }
         try { loadHomeBlocks(); } catch (e) { }
         try { loadPermissionsOnStartup(); } catch (e) { }
         if (BAKIM_MODU) {
@@ -690,7 +528,6 @@ async function girisYap() {
                         // Menü yetkilerini ve ana sayfa bloklarını login sonrası yükle
                         // ✅ YENİ: Veri yüklemeden önce yetkileri yükle ve bekle
                         loadPermissionsOnStartup().then(() => {
-                            loadMenuPermissions();
                             loadHomeBlocks();
                             loadContentData();
                             loadWizardData();
