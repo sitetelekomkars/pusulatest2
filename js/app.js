@@ -130,6 +130,11 @@ function normalizeGroup(v) {
         .replace(/ş/g, 's').replace(/ğ/g, 'g')
         .replace(/ü/g, 'u').replace(/ö/g, 'o')
         .replace(/ç/g, 'c');
+
+    // Standartlaştırma (Opsiyonel: Eğer her yerde standart isimler isteniyorsa)
+    if (s.includes('chat') || s === 'ob') return "Chat";
+    if (s.includes('telesat')) return "Telesatış";
+
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
@@ -4168,15 +4173,21 @@ async function logEvaluationPopup() {
     const foundUser = adminUserList.find(u => u.name.toLowerCase() === agentName.toLowerCase());
     if (foundUser && foundUser.group) { agentGroup = foundUser.group; }
 
-    const isChat = agentGroup.toLowerCase().includes('chat') || agentGroup.toLowerCase() === 'ob';
-    const isTelesatis = agentGroup.toLowerCase().includes('telesat');
-    if (isChat) agentGroup = 'Chat';
-    else if (isTelesatis) agentGroup = 'Telesatış';
+    // Güçlü Normalizasyon
+    const cleanGroup = agentGroup.toLowerCase()
+        .replace(/i̇/g, 'i').replace(/ı/g, 'i').replace(/ş/g, 's')
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').trim();
 
+    const isChat = cleanGroup.includes('chat') || cleanGroup === 'ob';
+    const isTelesatis = cleanGroup.includes('telesat');
+
+    let criteriaGroup = agentGroup;
+    if (isChat) criteriaGroup = 'Chat';
+    else if (isTelesatis) criteriaGroup = 'Telesatış';
 
     Swal.fire({ title: 'Hazırlanıyor...', didOpen: () => Swal.showLoading() });
     let criteriaList = [];
-    if (agentGroup && agentGroup !== 'Genel') { criteriaList = await fetchCriteria(agentGroup); }
+    if (criteriaGroup && criteriaGroup !== 'Genel') { criteriaList = await fetchCriteria(criteriaGroup); }
     Swal.close();
 
     const isCriteriaBased = criteriaList.length > 0;
@@ -4272,15 +4283,24 @@ async function editEvaluation(targetCallId) {
     if (!evalData) { Swal.fire('Hata', 'Kayıt bulunamadı.', 'error'); return; }
 
     const agentName = evalData.agent;
-    const agentGroupRaw = evalData.group || 'Genel';
-    const isChat = agentGroupRaw.toLowerCase().includes('chat') || agentGroupRaw.toLowerCase() === 'ob';
-    const isTelesatis = agentGroupRaw.toLowerCase().includes('telesat');
-    let agentGroup = isChat ? 'Chat' : (isTelesatis ? 'Telesatış' : 'Genel');
+    const agentGroup = evalData.group || 'Genel';
+
+    // Güçlü Normalizasyon
+    const cleanGroup = agentGroup.toLowerCase()
+        .replace(/i̇/g, 'i').replace(/ı/g, 'i').replace(/ş/g, 's')
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').trim();
+
+    const isChat = cleanGroup.includes('chat') || cleanGroup === 'ob';
+    const isTelesatis = cleanGroup.includes('telesat');
+
+    let criteriaGroup = agentGroup;
+    if (isChat) criteriaGroup = 'Chat';
+    else if (isTelesatis) criteriaGroup = 'Telesatış';
 
 
     Swal.fire({ title: 'İnceleniyor...', didOpen: () => Swal.showLoading() });
     let criteriaList = [];
-    if (agentGroup && agentGroup !== 'Genel') criteriaList = await fetchCriteria(agentGroup);
+    if (criteriaGroup && criteriaGroup !== 'Genel') criteriaList = await fetchCriteria(criteriaGroup);
     Swal.close();
 
     const isCriteriaBased = criteriaList.length > 0;
