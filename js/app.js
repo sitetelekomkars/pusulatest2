@@ -4156,8 +4156,8 @@ async function exportEvaluations() {
                 else if (score < 70) scoreStyle = "background-color:#FFC7CE; color:#9C0006; font-weight:bold;";
                 else scoreStyle = "background-color:#FFEB9C; color:#9C6500;";
 
-                // Durum Renklendirme (Index 6)
-                let status = r[6];
+                // Durum Renklendirme (Index 7: Durum)
+                let status = r[7];
                 let statusStyle = "";
                 if (status === "İncelemede") statusStyle = "background-color:#FFF2CC; font-weight:bold;";
 
@@ -4166,7 +4166,7 @@ async function exportEvaluations() {
                 r.forEach((cell, idx) => {
                     let cellStyle = "padding:5px; vertical-align:top;";
                     if (idx === 5) cellStyle += scoreStyle; // Puan
-                    if (idx === 6) cellStyle += statusStyle; // Durum
+                    if (idx === 7) cellStyle += statusStyle; // Durum
 
                     // Metin Hücreleri (Notlar, Cevaplar)
                     let val = (cell === null || cell === undefined) ? "" : String(cell);
