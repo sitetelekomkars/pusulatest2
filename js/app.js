@@ -566,12 +566,12 @@ function checkAdmin(role) {
         if (imageDropdown) imageDropdown.style.display = 'flex';
         if (quickEditDropdown) {
             quickEditDropdown.style.display = 'flex';
-            // Yetki Yönetimi ve Aktif Kullanıcılar sadece LocAdmin'de görünsün
+            // Yetki Yönetimi ve Aktif Kullanıcılar (Artık hasPerm/applyPermissionsToUI ile yönetiliyor)
             const perms = document.getElementById('dropdownPerms');
-            if (perms) perms.style.display = (isLocAdmin ? 'flex' : 'none');
+            if (perms) perms.style.display = 'flex';
 
             const activeUsersBtn = document.getElementById('dropdownActiveUsers');
-            if (activeUsersBtn) activeUsersBtn.style.display = (isLocAdmin ? 'flex' : 'none');
+            if (activeUsersBtn) activeUsersBtn.style.display = 'flex';
 
             quickEditDropdown.innerHTML = '<i class="fas fa-pen" style="color:var(--secondary);"></i> Düzenlemeyi Aç';
             quickEditDropdown.classList.remove('active');
@@ -6376,7 +6376,9 @@ async function openMenuPermissions() {
                         { key: "EditMode", label: "Düzenleme Modunu Açma", perms: ["Execute"] },
                         { key: "AddContent", label: "Yeni İçerik Ekleme", perms: ["Execute"] },
                         { key: "ImageUpload", label: "Görsel Yükleme", perms: ["Execute"] },
-                        { key: "Reports", label: "Rapor Çekme (Dışa Aktar)", perms: ["Execute"] }
+                        { key: "Reports", label: "Rapor Çekme (Dışa Aktar)", perms: ["Execute"] },
+                        { key: "RbacAdmin", label: "Yetki Yönetimi", perms: ["Execute"] },
+                        { key: "ActiveUsers", label: "Aktif Kullanıcılar", perms: ["Execute"] }
                     ]
                 },
                 {
@@ -6597,6 +6599,12 @@ function applyPermissionsToUI() {
     reportBtns.forEach(btn => {
         if (!hasPerm("Reports")) btn.style.display = 'none';
     });
+
+    const permsBtn = document.getElementById('dropdownPerms');
+    if (permsBtn && !hasPerm("RbacAdmin")) permsBtn.style.display = 'none';
+
+    const activeUsersBtn = document.getElementById('dropdownActiveUsers');
+    if (activeUsersBtn && !hasPerm("ActiveUsers")) activeUsersBtn.style.display = 'none';
 
     const menuMap = {
         "home": "home",
