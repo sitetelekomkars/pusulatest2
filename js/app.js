@@ -53,7 +53,7 @@ function showGlobalError(message) {
 }
 
 // Apps Script URL'si
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbxt1GN8hhnrsDheB5a_xUn8r_RxjmqB-tulhOtRX6yhZB84zgb4li0J9oyE5fQSVEPE/exec"; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbx9LV5bCnRRu4sBx9z6mZqUiDCqRI3yJeh4td4ba1n8Zx4ebSRQ2FvtwSVEg4zsbVeZ/exec"; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
@@ -3916,7 +3916,7 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                 // Rozetler (Başlık Yanı)
                 let statusBadge = '';
                 if (!isSeen && !isAdminMode) {
-                    statusBadge = `<span style="background:#ef5350; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; margin-left:8px; animation: pulse 2s infinite;">YENİ</span>`;
+                    statusBadge = `<span id="badge-new-${index}" style="background:#ef5350; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; margin-left:8px; animation: pulse 2s infinite;">YENİ</span>`;
                 } else if (status === 'Bekliyor') {
                     statusBadge = `<span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; margin-left:8px;">Görüş/Not İnceleniyor</span>`;
                 }
@@ -3926,15 +3926,15 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
 
                 // USER MODU
                 if (!isAdminMode) {
-                    if (!isSeen || (status !== 'Kapatıldı')) {
-                        // Henüz görülmedi veya süreç bitmedi -> İşlem Butonu
-                        let btnText = isSeen ? '📝 Not Ekle' : '✅ Okudum / Not Ekle';
-                        let btnColor = isSeen ? '#f57c00' : '#2e7d32'; // Turuncu / Yeşil
+                    if (status !== 'Kapatıldı') {
+                        // İşlem Butonu (Sadece Not Ekleme Amaçlı)
+                        let btnText = '💬 Görüş / Not Ekle';
+                        let btnColor = '#f57c00'; // Turuncu (Feedback)
                         interactionHtml += `
                          <div style="margin-top:15px; text-align:right; border-top:1px solid #eee; pt:10px;">
                             <button class="x-btn" style="background:${btnColor}; color:white; padding:6px 12px; font-size:0.85rem;" 
-                              onclick="event.stopPropagation(); openAgentNotePopup('${evalItem.callId}', '${scoreColor}')">
-                              <i class="fas fa-edit"></i> ${btnText}
+                              onclick="event.stopPropagation(); openAgentNotePopup('${evalItem.callId}', '${scoreColor}', true)">
+                              <i class="fas fa-comment-dots"></i> ${btnText}
                             </button>
                          </div>`;
                     }
@@ -3971,7 +3971,7 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
 
                 // HTML Buffer (Performans için)
                 listElBuffer += `
-                <div class="evaluation-summary" id="eval-summary-${index}" style="border-left:4px solid ${scoreColor}; padding:15px; margin-bottom:10px; border-radius:8px; background:#fff; cursor:pointer; position:relative;" onclick="toggleEvaluationDetail(${index})">
+                <div class="evaluation-summary" id="eval-summary-${index}" style="border-left:4px solid ${scoreColor}; padding:15px; margin-bottom:10px; border-radius:8px; background:#fff; cursor:pointer; position:relative;" onclick="toggleEvaluationDetail(${index}, '${evalItem.callId}', ${isSeen}, this)">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
                             <div style="font-weight:700; color:#2c3e50;">${baseAgent} ${agentNameDisplay} ${statusBadge}</div>
@@ -4048,10 +4048,33 @@ function fetchCriteria(groupName) {
         }).catch(err => resolve([]));
     });
 }
-function toggleEvaluationDetail(index) {
+function toggleEvaluationDetail(index, callId, isAlreadySeen, element) {
     const detailEl = document.getElementById(`eval-details-${index}`);
-    if (detailEl.style.maxHeight && detailEl.style.maxHeight !== '0px') { detailEl.style.maxHeight = '0px'; detailEl.style.marginTop = '0'; }
-    else { detailEl.style.maxHeight = detailEl.scrollHeight + 500 + 'px'; detailEl.style.marginTop = '10px'; }
+
+    // Aç/Kapa Mantığı
+    if (detailEl.style.maxHeight && detailEl.style.maxHeight !== '0px') {
+        detailEl.style.maxHeight = '0px';
+        detailEl.style.marginTop = '0';
+    } else {
+        detailEl.style.maxHeight = detailEl.scrollHeight + 500 + 'px';
+        detailEl.style.marginTop = '10px';
+
+        // OTOMATİK OKUNDU İŞARETLEME
+        // Eğer daha önce görülmemişse ve şu an açılıyorsa
+        if (!isAlreadySeen && callId) {
+            // Backend'e hissettirmeden istek at
+            apiCall("markEvaluationSeen", { callId: callId });
+
+            // Görsel olarak 'Yeni' etiketini kaldır (Varsa)
+            const badge = document.getElementById(`badge-new-${index}`);
+            if (badge) badge.style.display = 'none';
+
+            // HTML içindeki onclick parametresini güncelle (tekrar istek atmasın diye)
+            // element (tıklanan satır) üzerinden yapılabilir ama basitlik için global state veya reload beklenir.
+            // En temiz yöntem: Bu oturumda tekrar tetiklenmemesi için flag koymak ama isAlreadySeen parametresi sabit string geliyor.
+            // Neyse, mükerrer istek backende gitse de sorun değil, backend handle eder.
+        }
+    }
 }
 async function exportEvaluations() {
     if (!isAdminMode) return;
@@ -6856,60 +6879,43 @@ function applyPermissionsToUI() {
 // --- KALİTE GERİ BİLDİRİM & NOT SİSTEMİ POPUPLARI ---
 
 async function openAgentNotePopup(callId, color) {
-    // 1. "Okudum" diye işaretle (Backend - Fire & Forget)
-    apiCall("markEvaluationSeen", { callId: callId, username: currentUser });
-
     const { value: note } = await Swal.fire({
-        title: 'Değerlendirme Onayı',
+        title: '💬 Görüş / Not Ekle',
         html: `
-        <div style="text-align:left; margin-top:10px;">
-            <label style="display:flex; align-items:center; gap:10px; padding:10px; background:#e8f5e9; border-radius:6px; cursor:pointer;">
-                <input type="checkbox" id="chk-read-confirm" style="transform:scale(1.3); cursor:pointer;">
-                <span style="font-weight:600; color:#2e7d32;">Değerlendirmeyi okudum, anlaşıldı.</span>
-            </label>
-        </div>
-        <div style="margin-top:15px; text-align:left;">
-            <p style="font-size:0.9rem; color:#666; margin-bottom:5px;">(Opsiyonel) Görüş, teşekkür veya sorun bildirebilirsiniz:</p>
-            <textarea id="swal-agent-note" class="swal2-textarea" style="margin-top:0;" placeholder="Notunuz..."></textarea>
+        <div style="margin-top:5px; text-align:left;">
+            <p style="font-size:0.9rem; color:#555; margin-bottom:10px;">
+                Bu değerlendirme ile ilgili eklemek istediğiniz bir not, teşekkür veya görüş varsa aşağıya yazabilirsiniz.
+            </p>
+            <textarea id="swal-agent-note" class="swal2-textarea" style="margin-top:0;" placeholder="Notunuzu buraya yazın..."></textarea>
         </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Onayla',
+        confirmButtonText: 'Gönder',
         cancelButtonText: 'Vazgeç',
-        confirmButtonColor: '#2e7d32',
+        confirmButtonColor: '#f57c00',
         preConfirm: () => {
-            const isChecked = document.getElementById('chk-read-confirm').checked;
             const noteVal = document.getElementById('swal-agent-note').value;
-
-            // Eğer not yoksa, mutlaka tik atılmalı
-            if (!isChecked && !noteVal.trim()) {
-                Swal.showValidationMessage('Lütfen "Okudum" kutucuğunu işaretleyin veya bir not yazın.');
+            if (!noteVal || !noteVal.trim()) {
+                Swal.showValidationMessage('Lütfen bir not yazın veya Vazgeç butonuna basın.');
                 return false;
             }
-            return noteVal; // Notu döndür (boş olabilir)
+            return noteVal.trim();
         }
     });
 
-    if (note !== undefined) {
-        if (note.trim().length > 0) {
-            Swal.fire({ title: 'Not Kaydediliyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
-            try {
-                const res = await apiCall("submitAgentNote", { callId: callId, username: currentUser, note: note.trim() });
-                if (res.result === 'success') {
-                    Swal.fire('Başarılı', 'Notun yöneticiye iletildi.', 'success');
-                    fetchEvaluationsForAgent(currentUser); // Listeyi yenile
-                    checkQualityNotifications(); // Bildirimleri yenile
-                } else {
-                    Swal.fire('Hata', 'Not kaydedilemedi.', 'error');
-                }
-            } catch (e) {
-                Swal.fire('Hata', 'Sunucu hatası.', 'error');
+    if (note) {
+        Swal.fire({ title: 'Not Kaydediliyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
+        try {
+            const res = await apiCall("submitAgentNote", { callId: callId, username: currentUser, note: note });
+            if (res.result === 'success') {
+                Swal.fire('Başarılı', 'Görüşünüz yöneticiye iletildi.', 'success');
+                fetchEvaluationsForAgent(currentUser); // Listeyi yenile
+                checkQualityNotifications(); // Bildirimleri yenile
+            } else {
+                Swal.fire('Hata', 'Not kaydedilemedi.', 'error');
             }
-        } else {
-            // Sadece okundu (fire-and-forget başarılı kabul edilir)
-            Swal.fire('Teşekkürler', 'Değerlendirme okundu olarak işaretlendi.', 'success');
-            fetchEvaluationsForAgent(currentUser);
-            checkQualityNotifications();
+        } catch (e) {
+            Swal.fire('Hata', 'Sunucu hatası.', 'error');
         }
     }
 }
