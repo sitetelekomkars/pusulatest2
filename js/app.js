@@ -1960,11 +1960,11 @@ function finishQuickDecision(timeout) {
         color: '#fff',
         html: `
             <div style="text-align:center; padding: 10px;">
-                <div style="font-size:1.2rem; color:#bbb; margin-bottom:15px;">🧠 Hızlı Karar Sonucu</div>
-                <div style="font-size:2.5rem; font-weight:900; color:${scoreColor}; text-shadow: 0 0 15px ${scoreColor}88;">${qdScore}</div>
-                <div style="margin-top:10px; color:#888;">Puan topladın!</div>
-                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-                <div style="color:#666; font-size:0.9rem;">Daha hızlı karar vererek rekorunu geliştirebilirsin.</div>
+                <div style="font-size:1.2rem; color:#fff; margin-bottom:15px; font-weight:bold;">🧠 Hızlı Karar Sonucu</div>
+                <div style="font-size:3rem; font-weight:900; color:${scoreColor}; text-shadow: 0 0 15px ${scoreColor}cc;">${qdScore}</div>
+                <div style="margin-top:10px; color:#fff; font-weight:600;">TOPLAM PUAN</div>
+                <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:20px 0;">
+                <div style="color:#00f2ff; font-size:1rem; font-weight:600;">Daha hızlı karar vererek rekorunu geliştirebilirsin!</div>
             </div>`,
         confirmButtonText: '<i class="fas fa-redo"></i> Tekrar Oyna',
         confirmButtonColor: '#00f2ff',
