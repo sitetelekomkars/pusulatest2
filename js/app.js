@@ -5,7 +5,7 @@
 
 // --- CONFIGURATION ---
 const BAKIM_MODU = false;
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbzS8pNRnQsRdH_nj0xZMyF2ZNJxprE3jR1AwvVXqiOfcOYvy0fQBqmQ-Iir7xQZjn2QBA/exec";
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbyV1ybWkF3thWE08goIQ_kDB4cNYNuidZlxS4V-RibcajHJGL4xEi1Po8LnorztNLmx/exec";
 
 // --- GLOBAL STATE ---
 let currentUser = "";
