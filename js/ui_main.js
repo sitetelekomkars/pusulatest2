@@ -35,7 +35,7 @@ function loadContentData() {
     }
 
     // 2. Fetch Fresh Data
-    apiCall('fetchData').then(data => {
+    apiCall('getDatabase').then(data => {
         if (!loadedFromCache) document.getElementById('loading').style.display = 'none';
 
         if (data.result === "success") {
@@ -65,8 +65,11 @@ function processRawData(data) {
 
     // Arayüz tetikleyicileri
     startTicker();
-    if (currentCategory === 'home') renderHomePanels();
-    else filterContent();
+    if (currentCategory === 'home') {
+        showHomeScreen();
+    } else {
+        filterContent();
+    }
 }
 
 function renderCards(data) {
@@ -375,7 +378,7 @@ function toggleEditMode() {
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
 function startTicker() {
-    const ticker = document.getElementById('ticker-text');
+    const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
     const activeNews = newsData.filter(n => n.status === 'Aktif');
     if (activeNews.length === 0) { ticker.innerHTML = '<span>Duyuru yok. Bilgi Merkezi Yayında!</span>'; return; }
