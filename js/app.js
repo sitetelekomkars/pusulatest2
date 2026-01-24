@@ -1300,8 +1300,22 @@ function startTicker() {
     let tickerText = activeNews.map(i => {
         return `<span style="color:#fabb00; font-weight:bold;">[${i.date}]</span> <span style="color:#fff;">${i.title}:</span> <span style="color:#ddd;">${i.desc}</span>`;
     }).join(' &nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp; ');
+
     t.innerHTML = tickerText + ' &nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp; ' + tickerText;
-    t.style.animation = 'ticker-scroll 190s linear infinite';
+
+    // Dynamic Speed Calculation
+    // Estimate characters (removing tags for calculation)
+    const rawText = t.innerText || t.textContent;
+    const charCount = rawText.length;
+
+    // Base speed: 
+    // - 50 chars ~ 10s
+    // - 500 chars ~ 100s
+    // Formula: length / 5 (higher divider = faster, lower = slower)
+    // Let's try length / 6 for a very calm speed
+    let duration = Math.max(30, Math.round(charCount / 6));
+
+    t.style.animation = `ticker-scroll ${duration}s linear infinite`;
 }
 function openNews() {
     document.getElementById('news-modal').style.display = 'flex';
