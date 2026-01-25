@@ -52,7 +52,7 @@ body {
 .login-card {
   /* Glassmorphism (cam efekti) */
   background: rgba(28, 36, 56, 0.55);
-  padding: 28px 42px;
+  padding: 15px 42px;
   border-radius: 14px;
   text-align: center;
   width: 320px;
@@ -76,8 +76,8 @@ body {
 }
 
 .login-logo-img {
-  width: 90px;
-  height: 90px;
+  width: 75px;
+  height: 75px;
   object-fit: contain;
   margin-bottom: 0px;
   filter: drop-shadow(0 0 10px rgba(207, 10, 44, 0.3));
