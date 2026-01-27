@@ -470,21 +470,48 @@
         <div class="q-view-header">
           <h2>Geri Bildirimler</h2>
           <div id="q-feedback-filters" style="display:flex;gap:10px;margin-left:auto;align-items:center;flex-wrap:wrap">
-            <select id="q-feedback-group" onchange="updateFeedbackAgentList()" style="width:120px">
+            <select id="q-feedback-group" onchange="updateFeedbackAgentList()" class="minimal-select"
+              style="width:120px">
               <option value="all">Tüm Gruplar</option>
-            </select><select id="q-feedback-agent" onchange="refreshFeedbackData()" style="width:130px">
+            </select>
+            <select id="q-feedback-agent" onchange="refreshFeedbackData()" class="minimal-select" style="width:130px">
               <option value="all">Tüm Temsilciler</option>
             </select>
-          </div><button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none"
-            onclick="addManualFeedbackPopup()"><i class="fas fa-plus-circle" aria-hidden="true"></i>Geri Bildirim
-            Ekle</button>
+            <div class="q-period-selector" style="margin-left:5px">
+              <span>Dönem:</span>
+              <select id="q-feedback-month" onchange="refreshFeedbackData()" class="minimal-select"></select>
+            </div>
+          </div>
+          <button id="manual-feedback-admin-btn" class="add-manual-feedback-btn" style="display:none"
+            onclick="addManualFeedbackPopup()">
+            <i class="fas fa-plus-circle" aria-hidden="true"></i> Geri Bildirim Ekle
+          </button>
         </div>
         <div id="feedback-list" class="q-scroll-area"></div>
       </div>
       <div id="view-training" class="q-view-section">
         <div class="q-view-header">
-          <h2>Eğitim & Gelişim</h2><button id="assign-training-btn" class="add-btn" style="display:none"
-            onclick="assignTrainingPopup()">+ Eğitim Ata</button>
+          <h2>Eğitim & Gelişim</h2>
+          <div class="q-training-filters"
+            style="display:flex;gap:10px;margin-left:auto;align-items:center;flex-wrap:wrap">
+            <div class="search-container" style="width:200px">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" id="q-training-search" oninput="filterTrainingList()" placeholder="Eğitim ara..."
+                style="height:32px; font-size:0.8rem; padding-left:30px">
+            </div>
+            <select id="q-training-filter-type" onchange="filterTrainingList()" class="minimal-select"
+              style="height:32px; font-size:0.8rem">
+              <option value="all">Tüm Başlıklar</option>
+              <option value="Genel">Genel</option>
+              <option value="Telesatış">Telesatış</option>
+              <option value="Chat">Chat</option>
+              <option value="Individual">Kişiye Özel</option>
+            </select>
+            <button id="assign-training-btn" class="add-btn" style="display:none; height:32px"
+              onclick="assignTrainingPopup()">
+              <i class="fas fa-plus"></i> Ata
+            </button>
+          </div>
         </div>
         <div id="training-list" class="q-training-grid"></div>
       </div>
