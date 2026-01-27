@@ -53,7 +53,7 @@ function showGlobalError(message) {
 }
 
 // Apps Script URL'si
-let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbxCJNnf5FnZpd7Vk81c7XL3yFuPUwdNkTYTrxojY8gCN6_7t-YlNz1LfmDt_ZJ-u7aT/exec"; // Apps Script Web App URL
+let SCRIPT_URL = localStorage.getItem("PUSULA_SCRIPT_URL") || "https://script.google.com/macros/s/AKfycbwrs9cFAI5uiNJR9ZDduYEyCks52n__A5kBXJs-5Mz-h1QVZqpC3leI26_lawEqWFwN/exec"; // Apps Script Web App URL
 
 // ---- API CALL helper (Menu/Yetki vs için gerekli) ----
 async function apiCall(action, payload = {}) {
@@ -166,21 +166,25 @@ let feedbackLogsData = [];
 
 window.v2_setScore = function (index, score, max, type) {
     const itemEl = document.getElementById(`criteria-${index}`);
-    const noteEl = document.getElementById(`note-${index}`);
+    const noteRow = document.getElementById(`note-row-${index}`);
     const buttons = itemEl.querySelectorAll('.eval-btn-v2');
 
     // Aktif butonu güncelle
     buttons.forEach(b => b.classList.remove('active'));
-    itemEl.querySelector(`.eval-btn-v2.${type}`).classList.add('active');
+    const targetBtn = itemEl.querySelector(`.eval-btn-v2.${type}`);
+    if (targetBtn) targetBtn.classList.add('active');
 
     // Not alanını göster/gizle
-    if (score < max) {
-        noteEl.style.display = 'block';
-        itemEl.classList.add('failed');
-    } else {
-        noteEl.style.display = 'none';
-        noteEl.value = '';
-        itemEl.classList.remove('failed');
+    if (noteRow) {
+        if (score < max) {
+            noteRow.style.display = 'block';
+            itemEl.classList.add('failed');
+        } else {
+            noteRow.style.display = 'none';
+            const noteInp = document.getElementById(`note-${index}`);
+            if (noteInp) noteInp.value = '';
+            itemEl.classList.remove('failed');
+        }
     }
 
     // Buton verisini güncelle
@@ -192,18 +196,23 @@ window.v2_updateSlider = function (index, max) {
     const itemEl = document.getElementById(`criteria-${index}`);
     const slider = document.getElementById(`slider-${index}`);
     const valEl = document.getElementById(`val-${index}`);
-    const noteEl = document.getElementById(`note-${index}`);
+    const noteRow = document.getElementById(`note-row-${index}`);
+
+    if (!slider) return;
     const val = parseInt(slider.value);
 
-    valEl.innerText = `${val} / ${max}`;
+    if (valEl) valEl.innerText = `${val} / ${max}`;
 
-    if (val < max) {
-        noteEl.style.display = 'block';
-        itemEl.classList.add('failed');
-    } else {
-        noteEl.style.display = 'none';
-        noteEl.value = '';
-        itemEl.classList.remove('failed');
+    if (noteRow) {
+        if (val < max) {
+            noteRow.style.display = 'block';
+            itemEl.classList.add('failed');
+        } else {
+            noteRow.style.display = 'none';
+            const noteInp = document.getElementById(`note-${index}`);
+            if (noteInp) noteInp.value = '';
+            itemEl.classList.remove('failed');
+        }
     }
 
     window.v2_recalc();
@@ -2508,12 +2517,36 @@ function switchQualityTab(tabName, element) {
     // Veri Yükleme
     if (tabName === 'dashboard') loadQualityDashboard();
     else if (tabName === 'evaluations') fetchEvaluationsForAgent();
-    // DÜZELTME: Feedback sekmesi açılırken önce Feedback_Logs çekilmeli
     else if (tabName === 'feedback') {
         populateFeedbackFilters();
+        // Feedback için ay filtresini de doldur (eğer yoksa)
+        populateFeedbackMonthFilter();
         refreshFeedbackData();
     }
     else if (tabName === 'training') loadTrainingData();
+}
+
+// YENİ: Feedback için Ay Filtresi
+function populateFeedbackMonthFilter() {
+    const el = document.getElementById('q-feedback-month');
+    if (!el) return;
+    if (el.innerHTML !== '') return; // Zaten doluysa tekrar doldurma
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    for (let i = 0; i < 6; i++) {
+        let month = (currentMonth - i + 12) % 12;
+        let year = currentYear - (currentMonth - i < 0 ? 1 : 0);
+        const value = `${String(month + 1).padStart(2, '0')}.${year}`;
+        const text = `${MONTH_NAMES[month]} ${year}`;
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = text;
+        if (i === 0) opt.selected = true;
+        el.appendChild(opt);
+    }
 }
 // --- DASHBOARD FONKSİYONLARI ---
 function populateMonthFilterFull() {
@@ -2975,6 +3008,7 @@ function renderDashboardChart(data) {
 
     // Başarı oranına göre artan sıralama (En düşük başarı en başta)
     statsArray.sort((a, b) => a.value - b.value);
+
     // Eğer detay kırılımı yoksa (eski/boş kayıtlar), temsilci ortalamasına göre kırılım göster
     if (statsArray.length === 0) {
         const byAgent = {};
@@ -3003,10 +3037,13 @@ function renderDashboardChart(data) {
                 datasets: [{
                     label: 'Ortalama Puan',
                     data: chartData,
-                    backgroundColor: chartData.map(val => val < 70 ? 'rgba(211, 47, 47, 0.7)' : (val < 85 ? 'rgba(237, 108, 2, 0.7)' : 'rgba(46, 125, 50, 0.7)')),
-                    borderColor: chartData.map(val => val < 70 ? '#b71c1c' : (val < 85 ? '#e65100' : '#1b5e20')),
-                    borderWidth: 1,
-                    borderRadius: 4
+                    backgroundColor: (ctx) => {
+                        const v = ctx.raw;
+                        return v < 70 ? 'rgba(231, 76, 60, 0.8)' : (v < 85 ? 'rgba(241, 196, 15, 0.8)' : 'rgba(46, 204, 113, 0.8)');
+                    },
+                    borderRadius: 6,
+                    borderWidth: 0,
+                    barThickness: 24
                 }]
             },
             options: {
@@ -3014,21 +3051,21 @@ function renderDashboardChart(data) {
                 maintainAspectRatio: false,
                 indexAxis: 'y',
                 scales: {
-                    x: { beginAtZero: true, max: 100, grid: { color: '#f0f0f0' } },
-                    y: { grid: { display: false } }
+                    x: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } },
+                    y: { grid: { display: false }, ticks: { font: { weight: '600', size: 11 } } }
                 },
                 plugins: {
                     legend: { display: false },
                     valueLabelPlugin: { formatter: (v) => `${Number(v).toFixed(1)}` },
                     tooltip: {
+                        backgroundColor: 'rgba(14, 27, 66, 0.95)',
+                        padding: 12,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        cornerRadius: 8,
                         callbacks: {
-                            title: function (context) {
-                                if (context.length > 0) return topIssues[context[0].dataIndex].fullLabel;
-                                return '';
-                            },
-                            label: function (context) {
-                                return context.parsed.x + ' Ortalama';
-                            }
+                            title: (context) => topIssues[context[0].dataIndex].fullLabel,
+                            label: (context) => `Ortalama: ${context.parsed.x} Puan`
                         }
                     }
                 }
@@ -3039,9 +3076,9 @@ function renderDashboardChart(data) {
 
     // Sadece en düşük 6 kriteri göster
     let topIssues = statsArray.slice(0, 6);
-
     let chartLabels = topIssues.map(i => i.label);
     let chartData = topIssues.map(i => i.value.toFixed(1));
+
     dashboardChart = new Chart(ctx, {
         type: 'bar',
         plugins: [valueLabelPlugin],
@@ -3050,44 +3087,30 @@ function renderDashboardChart(data) {
             datasets: [{
                 label: 'Başarı Oranı (%)',
                 data: chartData,
-                // Kriter Bazlı Renklendirme
-                backgroundColor: chartData.map(val => val < 70 ? 'rgba(211, 47, 47, 0.7)' : (val < 90 ? 'rgba(237, 108, 2, 0.7)' : 'rgba(46, 125, 50, 0.7)')),
-                borderColor: chartData.map(val => val < 70 ? '#b71c1c' : (val < 90 ? '#e65100' : '#1b5e20')),
-                borderWidth: 1,
-                borderRadius: 4
+                backgroundColor: (ctx) => {
+                    const v = ctx.raw;
+                    return v < 70 ? 'rgba(231, 76, 60, 0.85)' : (v < 90 ? 'rgba(241, 196, 15, 0.85)' : 'rgba(46, 204, 113, 0.85)');
+                },
+                borderRadius: 8,
+                barThickness: 26
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'y', // Yatay çubuk grafik
+            indexAxis: 'y',
             scales: {
-                x: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: { color: '#f0f0f0' }
-                },
-                y: {
-                    grid: { display: false }
-                }
+                x: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.04)' } },
+                y: { grid: { display: false }, ticks: { font: { weight: '600' } } }
             },
             plugins: {
                 legend: { display: false },
                 valueLabelPlugin: { formatter: (v) => `${Number(v).toFixed(1)}%` },
                 tooltip: {
+                    backgroundColor: 'rgba(14, 27, 66, 0.95)',
                     callbacks: {
-                        // Tooltip başlığında tam metni gösterilmesi
-                        title: function (context) {
-                            if (context.length > 0) {
-                                const dataIndex = context[0].dataIndex;
-                                // fullLabel'i kullanarak tam metni döndür
-                                return topIssues[dataIndex].fullLabel;
-                            }
-                            return '';
-                        },
-                        label: function (context) {
-                            return context.parsed.x + '% Başarı';
-                        }
+                        title: (context) => topIssues[context[0].dataIndex].fullLabel,
+                        label: (context) => `Başarı: ${context.parsed.x}%`
                     }
                 }
             }
@@ -3204,24 +3227,31 @@ function renderDashboardTrendChart(data) {
             datasets: [{
                 label: 'Günlük Ortalama',
                 data: values,
-                tension: 0.25,
-                fill: false,
-                pointRadius: 3,
-                pointHoverRadius: 4,
-                borderWidth: 2
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#3498db',
+                pointBorderWidth: 2,
+                borderWidth: 3
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, max: 100, grid: { color: '#f0f0f0' } },
+                y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.03)' } },
                 x: { grid: { display: false } }
             },
             plugins: {
                 legend: { display: false },
                 valueLabelPlugin: { formatter: (v) => `${Number(v).toFixed(1)}` },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y} Ortalama` } }
+                tooltip: {
+                    backgroundColor: 'rgba(14, 27, 66, 0.95)',
+                    callbacks: { label: (ctx) => `Ortalama: ${ctx.parsed.y}` }
+                }
             }
         }
     });
@@ -3264,15 +3294,25 @@ function renderDashboardChannelChart(data) {
         plugins: [valueLabelPlugin],
         data: {
             labels,
-            datasets: [{ data: values, borderWidth: 1 }]
+            datasets: [{
+                data: values,
+                backgroundColor: ['#3498db', '#9b59b6', '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c'],
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 12
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '65%',
             plugins: {
-                legend: { position: 'bottom' },
-                valueLabelPlugin: { showPercent: true, minPercentToShow: 4 },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.formattedValue}` } }
+                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } },
+                valueLabelPlugin: { showPercent: true, minPercentToShow: 5, color: '#fff' },
+                tooltip: {
+                    backgroundColor: 'rgba(14, 27, 66, 0.95)',
+                    callbacks: { label: (ctx) => `${ctx.label}: ${ctx.formattedValue} Adet` }
+                }
             }
         }
     });
@@ -3303,19 +3343,29 @@ function renderDashboardScoreDistributionChart(data) {
         plugins: [valueLabelPlugin],
         data: {
             labels: ranges.map(r => r.label),
-            datasets: [{ label: 'Adet', data: counts, borderWidth: 1, borderRadius: 6 }]
+            datasets: [{
+                label: 'Adet',
+                data: counts,
+                backgroundColor: ['#e74c3c', '#e67e22', '#f1c40f', '#3498db', '#2ecc71'],
+                borderWidth: 0,
+                borderRadius: 4,
+                barThickness: 30
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { precision: 0 } },
                 x: { grid: { display: false } }
             },
             plugins: {
                 legend: { display: false },
                 valueLabelPlugin: { formatter: (v) => `${v}` },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y} kayıt` } }
+                tooltip: {
+                    backgroundColor: 'rgba(14, 27, 66, 0.95)',
+                    callbacks: { label: (ctx) => `${ctx.parsed.y} Kayıt` }
+                }
             }
         }
     });
@@ -3355,23 +3405,31 @@ function renderDashboardGroupAvgChart(data) {
         plugins: [valueLabelPlugin],
         data: {
             labels,
-            datasets: [{ label: 'Ortalama', data: values, borderWidth: 1, borderRadius: 6 }]
+            datasets: [{
+                label: 'Ortalama',
+                data: values,
+                backgroundColor: 'rgba(14, 27, 66, 0.8)',
+                hoverBackgroundColor: '#CF0A2C',
+                borderRadius: 4,
+                barThickness: 20
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             indexAxis: 'y',
             scales: {
-                x: { beginAtZero: true, max: 100, grid: { color: '#f0f0f0' } },
-                y: { grid: { display: false } }
+                x: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.03)' } },
+                y: { grid: { display: false }, ticks: { font: { weight: '600' } } }
             },
             plugins: {
                 legend: { display: false },
                 valueLabelPlugin: { formatter: (v) => `${Number(v).toFixed(1)}` },
                 tooltip: {
+                    backgroundColor: 'rgba(14, 27, 66, 0.95)',
                     callbacks: {
                         title: (ctx) => rows[ctx[0].dataIndex].g,
-                        label: (ctx) => `${ctx.parsed.x} Ortalama (${rows[ctx.dataIndex].count} kayıt)`
+                        label: (ctx) => `Ortalama: ${ctx.parsed.x} (${rows[ctx.dataIndex].count} Kayıt)`
                     }
                 }
             }
@@ -3379,6 +3437,8 @@ function renderDashboardGroupAvgChart(data) {
     });
 }
 // --- EĞİTİM MODÜLÜ (YENİ) ---
+let allTrainingsData = []; // Global cache for filtering
+
 function loadTrainingData() {
     const listEl = document.getElementById('training-list');
     listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center;">Yükleniyor...</div>';
@@ -3388,42 +3448,70 @@ function loadTrainingData() {
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "getTrainings", username: currentUser, token: getToken(), asAdmin: isAdminMode })
     }).then(r => r.json()).then(data => {
-        listEl.innerHTML = '';
-        if (data.result === 'success' && data.trainings.length > 0) {
-            data.trainings.forEach(t => {
-                let statusHtml = t.isCompleted
-                    ? `<button class="t-btn t-btn-done"><i class="fas fa-check"></i> Tamamlandı</button>`
-                    : `<button class="t-btn t-btn-start" onclick="openTrainingLink('${t.id}', '${t.link}')">Eğitime Git</button>`;
-
-                let docHtml = t.docLink && t.docLink !== 'N/A'
-                    ? `<a href="${t.docLink}" target="_blank" class="t-doc-link"><i class="fas fa-file-download"></i> Dökümanı İndir</a>`
-                    : '';
-
-                // GÜNCELLENMİŞ KART YAPISI (Tarih ve Süre Eklendi)
-                listEl.innerHTML += `
-                <div class="t-card">
-                    <div class="t-card-header">
-                        <span>${t.title}${isAdminMode ? ` <span style=\"font-weight:600; opacity:.8; font-size:.75rem\">(${t.target}${t.target === 'Individual' && t.targetUser ? ' • ' + t.targetUser : ''})</span>` : ''}</span>
-                        <span class="t-status-badge">Atanma: ${t.date}</span>
-                    </div>
-                    <div class="t-card-body">
-                        ${t.desc}
-                        ${docHtml}
-                        <div style="margin-top:10px; display:flex; justify-content:space-between; font-size:0.8rem; color:#666; padding-top:10px; border-top:1px dashed #eee;">
-                            <div><strong>Süre:</strong> ${t.duration || 'Belirtilmedi'}</div>
-                            <div><strong>Başlangıç:</strong> ${t.startDate || 'N/A'} - <strong>Bitiş:</strong> ${t.endDate || 'N/A'}</div>
-                        </div>
-                        <div style="font-size:0.8rem; color:#999; margin-top:5px;">Atayan: ${t.creator}</div>
-                    </div>
-                    <div class="t-card-footer">
-                        ${statusHtml}
-                    </div>
-                </div>`;
-            });
+        if (data.result === 'success') {
+            allTrainingsData = data.trainings || [];
+            renderTrainingList(allTrainingsData);
         } else {
-            listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">Atanmış eğitim bulunmuyor.</div>';
+            listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">Hata oluştu veya veri yok.</div>';
         }
     });
+}
+
+function renderTrainingList(trainings) {
+    const listEl = document.getElementById('training-list');
+    listEl.innerHTML = '';
+
+    if (!trainings || trainings.length === 0) {
+        listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">Görüntülenecek eğitim bulunmuyor.</div>';
+        return;
+    }
+
+    trainings.forEach(t => {
+        let statusHtml = t.isCompleted
+            ? `<button class="t-btn t-btn-done"><i class="fas fa-check"></i> Tamamlandı</button>`
+            : `<button class="t-btn t-btn-start" onclick="openTrainingLink('${t.id}', '${t.link}')">Eğitime Git</button>`;
+
+        let docHtml = t.docLink && t.docLink !== 'N/A'
+            ? `<a href="${t.docLink}" target="_blank" class="t-doc-link"><i class="fas fa-file-download"></i> Dökümanı İndir</a>`
+            : '';
+
+        listEl.innerHTML += `
+        <div class="t-card">
+            <div class="t-card-header">
+                <span>${t.title}${isAdminMode ? ` <span style="font-weight:600; opacity:.8; font-size:.75rem">(${t.target}${t.target === 'Individual' && t.targetUser ? ' • ' + t.targetUser : ''})</span>` : ''}</span>
+                <span class="t-status-badge">Atanma: ${t.date}</span>
+            </div>
+            <div class="t-card-body">
+                ${t.desc}
+                ${docHtml}
+                <div style="margin-top:10px; display:flex; justify-content:space-between; font-size:0.8rem; color:#666; padding-top:10px; border-top:1px dashed #eee;">
+                    <div><strong>Süre:</strong> ${t.duration || 'Belirtilmedi'}</div>
+                    <div><strong>Başlangıç:</strong> ${t.startDate || 'N/A'} - <strong>Bitiş:</strong> ${t.endDate || 'N/A'}</div>
+                </div>
+                <div style="font-size:0.8rem; color:#999; margin-top:5px;">Atayan: ${t.creator}</div>
+            </div>
+            <div class="t-card-footer">
+                ${statusHtml}
+            </div>
+        </div>`;
+    });
+}
+
+function filterTrainingList() {
+    const query = (document.getElementById('q-training-search').value || '').toLowerCase().trim();
+    const type = document.getElementById('q-training-filter-type').value;
+
+    const filtered = allTrainingsData.filter(t => {
+        const matchType = (type === 'all' || t.target === type);
+        const matchSearch = !query ||
+            (t.title && t.title.toLowerCase().includes(query)) ||
+            (t.desc && t.desc.toLowerCase().includes(query)) ||
+            (t.targetUser && t.targetUser.toLowerCase().includes(query));
+
+        return matchType && matchSearch;
+    });
+
+    renderTrainingList(filtered);
 }
 function startTraining(id) {
     fetch(SCRIPT_URL, {
@@ -3620,14 +3708,28 @@ function loadFeedbackList() {
     const manualBtn = document.getElementById('manual-feedback-admin-btn');
     if (manualBtn) manualBtn.style.display = isAdminMode ? 'flex' : 'none';
 
-    // YENİ FİLTRELEME MANTIĞI: Sadece feedbackType 'Mail' olanlar VEYA callId 'MANUEL' olanlar listelenir.
+    // YENİ FİLTRELEME MANTIĞI: Seçili dönem + (Mail veya Manuel)
+    const monthSelect = document.getElementById('q-feedback-month');
+    const selectedMonth = monthSelect ? monthSelect.value : null;
+
     const feedbackItems = allEvaluationsData.filter(e => {
-        // feedbackType kontrolü (Büyük/küçük harf duyarlılığını ortadan kaldırırız)
+        // feedbackType kontrolü
         const isMailFeedback = e.feedbackType && e.feedbackType.toLowerCase() === 'mail';
         // Manuel kontrolü
         const isManualFeedback = e.callId && String(e.callId).toUpperCase().startsWith('MANUEL-');
 
-        return isMailFeedback || isManualFeedback;
+        if (!isMailFeedback && !isManualFeedback) return false;
+
+        // Dönem kontrolü
+        if (selectedMonth) {
+            const rawDate = (e.callDate && e.callDate !== 'N/A') ? e.callDate : e.date;
+            if (!rawDate) return false;
+            const parts = rawDate.split('.');
+            if (parts.length < 3) return false;
+            const eMonthYear = `${parts[1].padStart(2, '0')}.${parts[2]}`;
+            return eMonthYear === selectedMonth;
+        }
+        return true;
     });
     if (feedbackItems.length === 0) {
         listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Görüntülenecek filtrelenmiş geri bildirim yok (Sadece Mail veya Manuel).</div>';
@@ -4097,6 +4199,11 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                 const statusIcon = isSeen ? '<i class="fas fa-check-double"></i>' : '<i class="fas fa-eye-slash"></i>';
                 const statusTitle = isSeen ? 'Görüldü' : 'Henüz Görülmedi';
 
+                const status = evalItem.status || 'Tamamlandı';
+                const statusBadge = status === 'Bekliyor'
+                    ? `<span style="background:#fff3e0; color:#e65100; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:10px; margin-left:8px; border:1px solid #ffe0b2;">${status}</span>`
+                    : (status === 'Kapatıldı' ? `<span style="background:#e3f2fd; color:#1565c0; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:10px; margin-left:8px; border:1px solid #bbdefb;">${status}</span>` : '');
+
                 listElBuffer += `
                 <div class="eval-card-v2" id="eval-card-${index}" onclick="newToggleEvaluationDetail(${index}, '${evalItem.callId}', ${isSeen}, this)">
                     <div class="eval-card-main">
@@ -4107,7 +4214,7 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                             </div>
                             <div class="eval-info-block">
                                 <div class="eval-agent-name">
-                                    ${baseAgent} ${agentNameDisplay}
+                                    ${baseAgent} ${agentNameDisplay} ${statusBadge}
                                 </div>
                                 <div class="eval-meta-row">
                                     <div class="eval-meta-item"><i class="fas fa-phone"></i> ${callDateDisplay}</div>
@@ -4447,7 +4554,7 @@ async function logEvaluationPopup() {
             if (isChat) {
                 let mPts = parseInt(c.mediumScore) || 0; let bPts = parseInt(c.badScore) || 0;
                 criteriaFieldsHtml += `
-                    <div class="criteria-item-v2" id="criteria-${i}" data-max-score="${pts}">
+                    <div class="criteria-item-v2" id="criteria-${i}" data-max-score="${pts}" data-current-score="${pts}">
                         <div class="criteria-top">
                             <span class="criteria-name" title="${fullText}">${i + 1}. ${c.text}</span>
                             <span class="criteria-max">Maks: ${pts} Puan</span>
@@ -4458,20 +4565,24 @@ async function logEvaluationPopup() {
                                 ${mPts > 0 ? `<button class="eval-btn-v2 medium" data-score="${mPts}" onclick="v2_setScore(${i}, ${mPts}, ${pts}, 'medium')">Orta</button>` : ''}
                                 <button class="eval-btn-v2 bad" data-score="${bPts}" onclick="v2_setScore(${i}, ${bPts}, ${pts}, 'bad')">Kötü</button>
                             </div>
-                            <input type="text" id="note-${i}" class="eval-input-v2" placeholder="Not ekle..." style="display:none; width:150px; height:32px; padding:4px 10px; font-size:0.8rem;">
+                        </div>
+                        <div class="criteria-note-row" id="note-row-${i}" style="display:none; margin-top:8px;">
+                            <input type="text" id="note-${i}" class="eval-input-v2" placeholder="Durum notu ekleyin..." style="width:100%; height:34px; font-size:0.85rem;">
                         </div>
                     </div>`;
             } else if (isTelesatis) {
                 criteriaFieldsHtml += `
-                    <div class="criteria-item-v2" id="criteria-${i}" data-max-score="${pts}">
+                    <div class="criteria-item-v2" id="criteria-${i}" data-max-score="${pts}" data-current-score="${pts}">
                         <div class="criteria-top">
                             <span class="criteria-name" title="${fullText}">${i + 1}. ${c.text}</span>
                             <span class="criteria-max" id="val-${i}">${pts} / ${pts}</span>
                         </div>
                         <div class="criteria-actions">
                             <input type="range" class="custom-range" id="slider-${i}" min="0" max="${pts}" value="${pts}" 
-                                   oninput="v2_updateSlider(${i}, ${pts})" style="width:100%; margin-right:15px;">
-                            <input type="text" id="note-${i}" class="eval-input-v2" placeholder="Not..." style="display:none; width:100px; height:32px; padding:4px 10px; font-size:0.8rem;">
+                                   oninput="v2_updateSlider(${i}, ${pts})" style="width:100%;">
+                        </div>
+                        <div class="criteria-note-row" id="note-row-${i}" style="display:none; margin-top:8px;">
+                            <input type="text" id="note-${i}" class="eval-input-v2" placeholder="Eksik/Gelişim notu..." style="width:100%; height:34px; font-size:0.85rem;">
                         </div>
                     </div>`;
             }
@@ -4527,10 +4638,10 @@ async function logEvaluationPopup() {
                     </select>
                 </div>
                 <div class="eval-input-group">
-                    <label>Durum</label>
+                    <label>Değerlendirme Durumu</label>
                     <select id="eval-status" class="eval-input-v2">
-                        <option value="Kapatıldı" selected>Tamamlandı</option>
-                        <option value="Bekliyor">İnceleme Bekliyor</option>
+                        <option value="Tamamlandı" selected>Tamamlandı</option>
+                        <option value="Bekliyor">Bekliyor</option>
                     </select>
                 </div>
             </div>
@@ -4569,13 +4680,19 @@ async function logEvaluationPopup() {
                 for (let i = 0; i < criteriaList.length; i++) {
                     const c = criteriaList[i]; if (parseInt(c.points) === 0) continue;
                     let val = 0; let note = document.getElementById(`note-${i}`).value;
-                    if (isChat) val = parseInt(document.getElementById(`badge-${i}`).innerText) || 0;
-                    else if (isTelesatis) val = parseInt(document.getElementById(`slider-${i}`).value) || 0;
+
+                    const itemEl = document.getElementById(`criteria-${i}`);
+                    if (isChat) {
+                        const activeBtn = itemEl.querySelector('.eval-btn-v2.active');
+                        val = activeBtn ? parseInt(activeBtn.getAttribute('data-score')) : 0;
+                    } else if (isTelesatis) {
+                        val = parseInt(document.getElementById(`slider-${i}`).value) || 0;
+                    }
                     total += val; detailsArr.push({ q: c.text, max: parseInt(c.points), score: val, note: note });
                 }
-                return { agentName, agentGroup, callId, callDate: formattedCallDate, score: total, details: JSON.stringify(detailsArr), feedback: document.getElementById('eval-feedback').value, feedbackType: document.getElementById('feedback-type').value };
+                return { agentName, agentGroup, callId, callDate: formattedCallDate, score: total, details: JSON.stringify(detailsArr), feedback: document.getElementById('eval-feedback').value, feedbackType: document.getElementById('feedback-type').value, status: document.getElementById('eval-status').value };
             } else {
-                return { agentName, agentGroup, callId, callDate: formattedCallDate, score: parseInt(document.getElementById('eval-manual-score').value), details: document.getElementById('eval-details').value, feedback: document.getElementById('eval-feedback').value, feedbackType: document.getElementById('feedback-type').value };
+                return { agentName, agentGroup, callId, callDate: formattedCallDate, score: parseInt(document.getElementById('eval-manual-score').value), details: document.getElementById('eval-details').value, feedback: document.getElementById('eval-feedback').value, feedbackType: document.getElementById('feedback-type').value, status: document.getElementById('eval-status').value };
             }
         }
     });
@@ -4677,6 +4794,16 @@ async function editEvaluation(targetCallId) {
         <div class="eval-modal-v2">
             <div class="eval-form-header" style="border-bottom-color:#1976d2;"><div class="eval-form-user"><div class="eval-form-avatar" style="background:#1976d2;">${agentName.charAt(0).toUpperCase()}</div><div><div style="font-size:0.8rem; color:#718096; font-weight:700;">DÜZENLENEN</div><div style="font-size:1.1rem; font-weight:800; color:#1976d2;">${agentName}</div></div></div><div class="eval-form-score-box"><div class="eval-form-score-val" id="v2-live-score">${evalData.score}</div><div class="eval-form-score-label">MEVCUT PUAN</div></div></div>
             <div class="eval-form-grid" style="background:#f0f7ff; border:1px solid #cde4ff;"><div class="eval-input-group"><label>Call ID</label><input id="eval-callid" class="eval-input-v2" value="${evalData.callId}" readonly style="background:#e1efff; cursor:not-allowed;"></div><div class="eval-input-group"><label>Çağrı Tarihi</label><input type="date" id="eval-calldate" class="eval-input-v2" value="${safeDateVal}"></div></div>
+            <div class="eval-form-grid" style="margin-top:10px;">
+                <div class="eval-input-group">
+                    <label>Değerlendirme Durumu</label>
+                    <select id="eval-status" class="eval-input-v2">
+                        <option value="Tamamlandı" ${evalData.status === 'Tamamlandı' ? 'selected' : ''}>Tamamlandı</option>
+                        <option value="Bekliyor" ${evalData.status === 'Bekliyor' ? 'selected' : ''}>Bekliyor</option>
+                        <option value="Kapatıldı" ${evalData.status === 'Kapatıldı' ? 'selected' : ''}>Kapatıldı</option>
+                    </select>
+                </div>
+            </div>
             <div style="margin:15px 0; font-weight:800; font-size:0.9rem; color:#4a5568;"><i class="fas fa-edit" style="color:#1976d2;"></i> KRİTERLERİ GÜNCELLE</div>
             ${isCriteriaBased ? criteriaFieldsHtml : `<div style="padding:20px; background:#f8fafc; border:1px dashed #cbd5e0; border-radius:12px; text-align:center; margin-bottom:20px;"><label style="display:block; margin-bottom:8px; font-weight:700;">Manuel Puan</label><input id="eval-manual-score" type="number" class="eval-input-v2" value="${evalData.score}" min="0" max="100" style="width:80px; text-align:center;"></div><textarea id="eval-details" class="eval-input-v2" style="height:100px;">${typeof evalData.details === 'string' ? evalData.details : ''}</textarea>`}
             <div class="eval-input-group"><label>Revize Feedback / Notlar</label><textarea id="eval-feedback" class="eval-input-v2" style="height:100px;">${evalData.feedback || ''}</textarea></div>
@@ -4702,9 +4829,9 @@ async function editEvaluation(targetCallId) {
                     else { const activeBtn = itemEl.querySelector('.eval-btn-v2.active'); val = activeBtn ? parseInt(activeBtn.getAttribute('data-score')) : 0; }
                     total += val; detailsArr.push({ q: c.text, max: parseInt(c.points), score: val, note: note });
                 }
-                return { agentName, callId, callDate, score: total, details: JSON.stringify(detailsArr), feedback };
+                return { agentName, callId, callDate, score: total, details: JSON.stringify(detailsArr), feedback, status: document.getElementById('eval-status').value };
             } else {
-                return { agentName, callId, callDate, score: parseInt(document.getElementById('eval-manual-score').value), details: document.getElementById('eval-details').value, feedback };
+                return { agentName, callId, callDate, score: parseInt(document.getElementById('eval-manual-score').value), details: document.getElementById('eval-details').value, feedback, status: document.getElementById('eval-status').value };
             }
         }
     });
