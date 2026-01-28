@@ -172,32 +172,32 @@ async function apiCall(action, params = {}) {
                     return { result: "success", users: [] };
                 }
                 // Normalize Users rows to expected shape: {name, role, group}
-const users = (data || []).map(r => {
-    const name = r.name ?? r.username ?? r.Username ?? r.USERNAME ?? r["Username"] ?? r["username"] ?? r["Name"] ?? r["NAME"];
-    const role = r.role ?? r.Role ?? r.ROLE ?? r["Role"] ?? r["role"];
-    const group = r.group ?? r.Group ?? r.GRUP ?? r.Grup ?? r["Group"] ?? r["group"] ?? r["Grup"] ?? r["GRUP"];
-    return { name, role, group };
-}).filter(u => u.name);
-return { result: "success", users: users };
+                const users = (data || []).map(r => {
+                    const name = r.name ?? r.username ?? r.Username ?? r.USERNAME ?? r["Username"] ?? r["username"] ?? r["Name"] ?? r["NAME"];
+                    const role = r.role ?? r.Role ?? r.ROLE ?? r["Role"] ?? r["role"];
+                    const group = r.group ?? r.Group ?? r.GRUP ?? r.Grup ?? r["Group"] ?? r["group"] ?? r["Grup"] ?? r["GRUP"];
+                    return { name, role, group };
+                }).filter(u => u.name);
+                return { result: "success", users: users };
             }
             case "getCriteria": {
-    // Criteria sheet is stored in "Settings" table after CSV import.
-    // Expected output shape for UI: [{text, points, mediumScore, badScore, order}]
-    let q = sb.from('Settings').select('*');
-    if (params.group) q = q.eq('Grup', params.group);
-    const { data, error } = await q.order('Sira', { ascending: true });
-    if (error) throw error;
+                // Criteria sheet is stored in "Settings" table after CSV import.
+                // Expected output shape for UI: [{text, points, mediumScore, badScore, order}]
+                let q = sb.from('Settings').select('*');
+                if (params.group) q = q.eq('Grup', params.group);
+                const { data, error } = await q.order('Sira', { ascending: true });
+                if (error) throw error;
 
-    const criteria = (data || []).map(r => ({
-        text: r.Soru ?? r.text ?? r["Soru"] ?? '',
-        points: r.Puan ?? r.points ?? r["Puan"] ?? 0,
-        mediumScore: r["Orta Puan"] ?? r.OrtaPuan ?? r.mediumScore ?? 0,
-        badScore: r["Kötü Puan"] ?? r["Kotu Puan"] ?? r.KotuPuan ?? r.badScore ?? 0,
-        order: r.Sira ?? r.order ?? 0
-    })).filter(c => c.text);
+                const criteria = (data || []).map(r => ({
+                    text: r.Soru ?? r.text ?? r["Soru"] ?? '',
+                    points: r.Puan ?? r.points ?? r["Puan"] ?? 0,
+                    mediumScore: r["Orta Puan"] ?? r.OrtaPuan ?? r.mediumScore ?? 0,
+                    badScore: r["Kötü Puan"] ?? r["Kotu Puan"] ?? r.KotuPuan ?? r.badScore ?? 0,
+                    order: r.Sira ?? r.order ?? 0
+                })).filter(c => c.text);
 
-    return { result: "success", criteria };
-}
+                return { result: "success", criteria };
+            }
             case "getShiftData": {
                 const { data, error } = await sb.from('ShiftData').select('*');
                 if (error) throw error;
@@ -336,7 +336,10 @@ async function loadHomeBlocks() {
 
         homeBlocks = {};
         data.forEach(row => {
-            if (row.BlockId) homeBlocks[row.BlockId] = row;
+            const normalized = normalizeKeys(row);
+            if (normalized.blockId) homeBlocks[normalized.blockId] = normalized;
+            // Geriye dönük uyum için orijinal key'i de kontrol et
+            else if (row.BlockId) homeBlocks[row.BlockId] = normalized;
         });
 
         try { localStorage.setItem('homeBlocksCache', JSON.stringify(homeBlocks || {})); } catch (e) { }
@@ -4535,9 +4538,9 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                 let detailTableHtml = '';
                 try {
                     let detailObj = evalItem.details;
-if (typeof detailObj === 'string') {
-    detailObj = JSON.parse(detailObj);
-}
+                    if (typeof detailObj === 'string') {
+                        detailObj = JSON.parse(detailObj);
+                    }
                     if (Array.isArray(detailObj)) {
                         detailTableHtml = '<div class="eval-row-grid-v2">';
                         detailObj.forEach(item => {
