@@ -62,31 +62,6 @@ const sb = (window.supabase && typeof window.supabase.createClient === 'function
 // SCRIPT_URL ve apiCall kaldırıldı. Tüm işlemler Supabase üzerinden yürütülmektedir.
 // Aşağıdaki apiCall fonksiyonu, eski kodların çalışabilmesi için Supabase üzerine bir köprü (wrapper) görevi görür.
 
-// ⚠️ KRİTİK FIX: Supabase PascalCase → Frontend camelCase dönüşümü
-function normalizeKeys(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj.map(normalizeKeys);
-
-    const n = {};
-    Object.keys(obj).forEach(k => {
-        // Hem orijinal hem de lowercase/camelCase versiyonları tut
-        n[k] = obj[k];
-        const lower = k.toLowerCase();
-        n[lower] = obj[k];
-
-        // Kritik mappingler
-        if (k === 'AgentName') { n.agent = obj[k]; n.agentName = obj[k]; }
-        if (k === 'CallID') n.callId = obj[k]; // ← Supabase'de CallID (büyük ID)
-        if (k === 'CallDate') n.callDate = obj[k];
-        if (k === 'Okundu') n.isSeen = (obj[k] === 1 || obj[k] === true); // ← Supabase'de Okundu
-        if (k === 'Durum') n.status = obj[k]; // ← Supabase'de Durum
-        if (k === 'FeedbackType') n.feedbackType = obj[k];
-        if (k === 'AgentNote') n.agentNote = obj[k];
-        if (k === 'ManagerReply') n.managerReply = obj[k];
-    });
-    return n;
-}
-
 async function apiCall(action, params = {}) {
     console.log(`[Pusula] apiCall: ${action}`, params);
     try {
@@ -119,18 +94,7 @@ async function apiCall(action, params = {}) {
                 }
                 const { data, error } = await query.order('id', { ascending: false });
                 if (error) throw error;
-
-                console.log('[Pusula] fetchEvaluations RAW:', data);
-                const normalized = (data || []).map(e => {
-                    const n = normalizeKeys(e);
-                    // Ekstra mappingler ChatGPT versiyonu için
-                    if (e.CallID) n.callId = e.CallID;
-                    if (e.Okundu !== undefined) n.isSeen = e.Okundu === 1 || e.Okundu === true;
-                    if (e.Durum) n.status = e.Durum;
-                    return n;
-                });
-                console.log('[Pusula] fetchEvaluations NORMALIZED:', normalized);
-                return { result: "success", evaluations: normalized };
+                return { result: "success", evaluations: data };
             }
             case "logEvaluation": {
                 const { data, error } = await sb.from('Evaluations').insert([{
@@ -207,13 +171,33 @@ async function apiCall(action, params = {}) {
                     // Users tablosu yoksa RolePermissions'dan rolleri dönelim (geçici çözüm)
                     return { result: "success", users: [] };
                 }
-                return { result: "success", users: data };
+                // Normalize Users rows to expected shape: {name, role, group}
+const users = (data || []).map(r => {
+    const name = r.name ?? r.username ?? r.Username ?? r.USERNAME ?? r["Username"] ?? r["username"] ?? r["Name"] ?? r["NAME"];
+    const role = r.role ?? r.Role ?? r.ROLE ?? r["Role"] ?? r["role"];
+    const group = r.group ?? r.Group ?? r.GRUP ?? r.Grup ?? r["Group"] ?? r["group"] ?? r["Grup"] ?? r["GRUP"];
+    return { name, role, group };
+}).filter(u => u.name);
+return { result: "success", users: users };
             }
             case "getCriteria": {
-                const { data, error } = await sb.from('Criteria').select('*').eq('category', params.group);
-                if (error) throw error;
-                return { result: "success", criteria: data };
-            }
+    // Criteria sheet is stored in "Settings" table after CSV import.
+    // Expected output shape for UI: [{text, points, mediumScore, badScore, order}]
+    let q = sb.from('Settings').select('*');
+    if (params.group) q = q.eq('Grup', params.group);
+    const { data, error } = await q.order('Sira', { ascending: true });
+    if (error) throw error;
+
+    const criteria = (data || []).map(r => ({
+        text: r.Soru ?? r.text ?? r["Soru"] ?? '',
+        points: r.Puan ?? r.points ?? r["Puan"] ?? 0,
+        mediumScore: r["Orta Puan"] ?? r.OrtaPuan ?? r.mediumScore ?? 0,
+        badScore: r["Kötü Puan"] ?? r["Kotu Puan"] ?? r.KotuPuan ?? r.badScore ?? 0,
+        order: r.Sira ?? r.order ?? 0
+    })).filter(c => c.text);
+
+    return { result: "success", criteria };
+}
             case "getShiftData": {
                 const { data, error } = await sb.from('ShiftData').select('*');
                 if (error) throw error;
@@ -4550,7 +4534,10 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                 // Detay HTML oluşturma (V2 Compact Grid)
                 let detailTableHtml = '';
                 try {
-                    const detailObj = JSON.parse(evalItem.details);
+                    let detailObj = evalItem.details;
+if (typeof detailObj === 'string') {
+    detailObj = JSON.parse(detailObj);
+}
                     if (Array.isArray(detailObj)) {
                         detailTableHtml = '<div class="eval-row-grid-v2">';
                         detailObj.forEach(item => {
@@ -4569,10 +4556,10 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
                         });
                         detailTableHtml += '</div>';
                     } else {
-                        detailTableHtml = `<div class="eval-feedback-box-v2">${evalItem.details}</div>`;
+                        detailTableHtml = `<div class="eval-feedback-box-v2">${(typeof evalItem.details === "object" ? escapeHtml(JSON.stringify(evalItem.details)) : evalItem.details)}</div>`;
                     }
                 } catch (e) {
-                    detailTableHtml = `<div class="eval-feedback-box-v2">${evalItem.details}</div>`;
+                    detailTableHtml = `<div class="eval-feedback-box-v2">${(typeof evalItem.details === "object" ? escapeHtml(JSON.stringify(evalItem.details)) : evalItem.details)}</div>`;
                 }
 
                 const callDateDisplay = evalItem.callDate && evalItem.callDate !== 'N/A' ? evalItem.callDate : 'N/A';
