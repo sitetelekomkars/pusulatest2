@@ -582,7 +582,17 @@ async function girisYap() {
                     loadTechWizardData();
                 });
             }
-            apiCall('logLogin', { ip: globalUserIP }).catch(() => { });
+
+            // Loglama: Google yerine doğrudan Supabase'e yazıyoruz
+            try {
+                sb.from('Logs').insert([{
+                    Date: new Date(),
+                    Username: currentUser,
+                    Action: "Giriş",
+                    Detail: "Supabase Login",
+                    IP: globalUserIP || ""
+                }]).then(() => { });
+            } catch (e) { console.warn("Log hatası:", e); }
         }
     } catch (err) {
         console.error("Login Error:", err);
