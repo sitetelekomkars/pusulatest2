@@ -60,6 +60,212 @@ const sb = (window.supabase && typeof window.supabase.createClient === 'function
     : null;
 
 // SCRIPT_URL ve apiCall kaldırıldı. Tüm işlemler Supabase üzerinden yürütülmektedir.
+// Aşağıdaki apiCall fonksiyonu, eski kodların çalışabilmesi için Supabase üzerine bir köprü (wrapper) görevi görür.
+
+async function apiCall(action, params = {}) {
+    console.log(`[Pusula] apiCall: ${action}`, params);
+    try {
+        switch (action) {
+            case "getRolePermissions": {
+                const { data, error } = await sb.from('RolePermissions').select('*');
+                if (error) throw error;
+                // Grupları (rolleri) benzersiz şekilde ayıkla
+                const groups = [...new Set(data.map(p => p.role))];
+                return { result: "success", permissions: data, groups: groups };
+            }
+            case "setRolePermissions": {
+                const { role, perms } = params;
+                // Önce bu role ait eski yetkileri temizle (veya direkt upsert kullan)
+                // Daha verimli olması için her resource bazında tek tek upsert:
+                for (const p of perms) {
+                    await sb.from('RolePermissions').upsert({
+                        role: role,
+                        resource: p.resource,
+                        permission: p.permission,
+                        value: p.value
+                    }, { onConflict: 'role,resource' });
+                }
+                return { result: "success" };
+            }
+            case "fetchEvaluations": {
+                let query = sb.from('Evaluations').select('*');
+                if (params.targetAgent && params.targetAgent !== 'all') {
+                    query = query.eq('agent', params.targetAgent);
+                }
+                const { data, error } = await query.order('id', { ascending: false });
+                if (error) throw error;
+                return { result: "success", evaluations: data };
+            }
+            case "logEvaluation": {
+                const { data, error } = await sb.from('Evaluations').insert([{
+                    agent: params.agentName,
+                    evaluator: currentUser,
+                    callId: params.callId,
+                    callDate: params.callDate,
+                    score: params.score,
+                    details: params.details,
+                    feedback: params.feedback,
+                    feedbackType: params.feedbackType,
+                    group: params.agentGroup,
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    isSeen: false,
+                    status: params.status || 'Tamamlandı'
+                }]);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "updateEvaluation": {
+                const { error } = await sb.from('Evaluations').update({
+                    callDate: params.callDate,
+                    score: params.score,
+                    details: params.details,
+                    feedback: params.feedback,
+                    status: params.status
+                }).eq('callId', params.callId);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "markEvaluationSeen": {
+                const { error } = await sb.from('Evaluations').update({ isSeen: true }).eq('callId', params.callId);
+                return { result: error ? "error" : "success" };
+            }
+            case "getTrainings": {
+                const { data, error } = await sb.from('Trainings').select('*');
+                if (error) throw error;
+                return { result: "success", trainings: data };
+            }
+            case "startTraining": {
+                // Trainings tablosunda kullanıcı bazlı tamamlanma durumunu tutan ayrı bir tablo (TrainingStatus) olabilir.
+                // Şimdilik basitleştirilmiş bir yapı:
+                return { result: "success" };
+            }
+            case "completeTraining": {
+                const { error } = await sb.from('Trainings').update({ isCompleted: true }).eq('id', params.trainingId);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "assignTraining": {
+                const { error } = await sb.from('Trainings').insert([{
+                    title: params.title,
+                    desc: params.desc,
+                    link: params.link,
+                    docLink: params.docLink,
+                    target: params.target,
+                    targetUser: params.targetAgent,
+                    creator: params.creator,
+                    startDate: params.startDate,
+                    endDate: params.endDate,
+                    duration: params.duration,
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    isCompleted: false
+                }]);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "getUserList": {
+                // Users bilgisini RolePermissions tablosundan veya varsa Users tablosundan çek
+                // Şimdilik RolePermissions'daki benzersiz kullanıcıları/rolleri baz alalım veya dummy dönelim.
+                // Aslında RolePermissions yetkileri tutuyor. Kullanıcı listesi ayrı olabilir.
+                const { data, error } = await sb.from('Users').select('*');
+                if (error) {
+                    // Users tablosu yoksa RolePermissions'dan rolleri dönelim (geçici çözüm)
+                    return { result: "success", users: [] };
+                }
+                return { result: "success", users: data };
+            }
+            case "getCriteria": {
+                const { data, error } = await sb.from('Criteria').select('*').eq('category', params.group);
+                if (error) throw error;
+                return { result: "success", criteria: data };
+            }
+            case "getShiftData": {
+                const { data, error } = await sb.from('ShiftData').select('*');
+                if (error) throw error;
+                // Örnek bir dönüş yapısı (backend formatına uygun)
+                return { result: "success", shifts: (data && data[0] && data[0].content) || {} };
+            }
+            case "submitShiftRequest": {
+                const { error } = await sb.from('ShiftRequests').insert([{
+                    username: currentUser,
+                    ...params,
+                    timestamp: new Date().toLocaleString('tr-TR')
+                }]);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "fetchFeedbackLogs": {
+                const { data, error } = await sb.from('Feedback_Logs').select('*');
+                if (error) throw error;
+                return { result: "success", feedbackLogs: data };
+            }
+            case "getTelesalesOffers": {
+                const { data, error } = await sb.from('TelesalesOffers').select('*');
+                return { result: "success", data: data || [] };
+            }
+            case "saveAllTelesalesOffers": {
+                // Mevcut tüm teklifleri tek seferde değiştiren bir yapı (dikkatli kullanilmali)
+                await sb.from('TelesalesOffers').delete().neq('id', 0); // Hepsini sil
+                const { error } = await sb.from('TelesalesOffers').insert(params.offers);
+                return { result: error ? "error" : "success" };
+            }
+            case "getTelesalesScripts": {
+                const { data, error } = await sb.from('TelesalesScripts').select('*');
+                return { result: "success", items: data || [] };
+            }
+            case "saveTelesalesScripts": {
+                await sb.from('TelesalesScripts').delete().neq('id', 0);
+                const { error } = await sb.from('TelesalesScripts').insert(params.scripts);
+                return { result: error ? "error" : "success" };
+            }
+            case "getTechDocs": {
+                const { data, error } = await sb.from('TechDocs').select('*');
+                return { result: "success", data: data || [] };
+            }
+            case "getTechDocCategories": {
+                const { data, error } = await sb.from('TechDocs').select('Kategori');
+                const cats = [...new Set(data.filter(x => x.Kategori).map(x => x.Kategori))];
+                return { result: "success", categories: cats };
+            }
+            case "upsertTechDoc": {
+                const { error } = await sb.from('TechDocs').upsert({
+                    Kategori: params.kategori,
+                    Başlık: params.baslik,
+                    İçerik: params.icerik,
+                    Adım: params.adim,
+                    Not: params.not,
+                    Link: params.link,
+                    Resim: params.image,
+                    Durum: params.durum
+                }, { onConflict: 'Başlık' });
+                return { result: error ? "error" : "success" };
+            }
+            case "updateHomeBlock": {
+                const { error } = await sb.from('HomeBlocks').upsert({
+                    BlockId: params.key,
+                    Title: params.title,
+                    Content: params.content,
+                    VisibleGroups: params.visibleGroups
+                }, { onConflict: 'BlockId' });
+                return { result: error ? "error" : "success" };
+            }
+            case "getActiveUsers": {
+                // Aktif kullanıcıları izleyen bir tablo (ActiveUsers) olmalı. 
+                // Şimdilik boş dönelim.
+                return { result: "success", users: [] };
+            }
+            case "getQualityNotifications": {
+                // Şimdilik sıfır dönelim
+                return { result: "success", notifications: { pendingFeedbackCount: 0, unseenCount: 0 } };
+            }
+            default:
+                console.warn(`[Pusula] Bilinmeyen apiCall action: ${action}`);
+                return { result: "error", message: `Hizmet taşınıyor: ${action}` };
+        }
+    } catch (err) {
+        console.error(`[Pusula] apiCall Error (${action}):`, err);
+        return { result: "error", message: err.message };
+    }
+}
 
 // SweetAlert2 yoksa minimal yedek (sessiz kırılma olmasın)
 if (typeof Swal === "undefined") {
@@ -3578,11 +3784,7 @@ function loadTrainingData() {
     const listEl = document.getElementById('training-list');
     listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center;">Yükleniyor...</div>';
 
-    fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "getTrainings", username: currentUser, token: getToken(), asAdmin: isAdminMode })
-    }).then(r => r.json()).then(data => {
+    apiCall("getTrainings", { asAdmin: isAdminMode }).then(data => {
         if (data.result === 'success') {
             allTrainingsData = data.trainings || [];
             renderTrainingList(allTrainingsData);
@@ -3649,11 +3851,7 @@ function filterTrainingList() {
     renderTrainingList(filtered);
 }
 function startTraining(id) {
-    fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "startTraining", trainingId: id, username: currentUser, token: getToken() })
-    }).then(r => r.json()).catch(() => { });
+    apiCall("startTraining", { trainingId: id });
 }
 
 function openTrainingLink(id, link) {
@@ -3679,11 +3877,7 @@ function openTrainingLink(id, link) {
     });
 }
 function completeTraining(id) {
-    fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "completeTraining", trainingId: id, username: currentUser, token: getToken() })
-    }).then(r => r.json()).then(d => {
+    apiCall("completeTraining", { trainingId: id }).then(d => {
         if (d.result === 'success') {
             Swal.fire('Harika!', 'Eğitim tamamlandı olarak işaretlendi.', 'success');
             loadTrainingData();
@@ -3793,12 +3987,7 @@ async function assignTrainingPopup() {
 // YENİ FONKSİYON: Feedback_Logs'u çekmek için
 async function fetchFeedbackLogs() {
     try {
-        const res = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "fetchFeedbackLogs", username: currentUser, token: getToken() })
-        });
-        const data = await res.json();
+        const data = await apiCall("fetchFeedbackLogs", {});
         if (data.result === "success") {
             feedbackLogsData = data.feedbackLogs || [];
         } else {
@@ -4135,50 +4324,15 @@ async function addManualFeedbackPopup() {
         }
 
         Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading() });
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: "logEvaluation", username: currentUser, token: getToken(), ...formValues })
-        })
-            .then(r => r.json()).then(async d => {
-                if (d.result === "success") {
-                    Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
-                    // DÜZELTME: Hem evaluations hem de feedback logs güncellenmeli
-                    fetchEvaluationsForAgent(formValues.agentName);
-                    fetchFeedbackLogs().then(() => { loadFeedbackList(); });
-                } else if (d.result === "duplicate") {
-                    const decision = await Swal.fire({
-                        icon: 'warning',
-                        title: 'Mükerrer Dinleme',
-                        html: `<div style="text-align:left; line-height:1.4;">
-                            <b>${formValues.agentName}</b> için <b>Call ID: ${escapeHtml(formValues.callId)}</b> zaten var.<br>
-                            <span style="color:#666; font-size:0.9rem;">Yine de yeni kayıt oluşturulsun mu?</span>
-                           </div>`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Evet, zorla kaydet',
-                        cancelButtonText: 'Vazgeç',
-                        reverseButtons: true
-                    });
-                    if (decision.isConfirmed) {
-                        Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading() });
-                        fetch(SCRIPT_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify({ action: "logEvaluation", username: currentUser, token: getToken(), force: true, ...formValues })
-                        }).then(r2 => r2.json()).then(d2 => {
-                            if (d2.result === "success") {
-                                Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
-                                fetchEvaluationsForAgent(formValues.agentName);
-                                fetchFeedbackLogs().then(() => { loadFeedbackList(); });
-                            } else {
-                                Swal.fire('Hata', d2.message, 'error');
-                            }
-                        });
-                    }
-                } else {
-                    Swal.fire('Hata', d.message, 'error');
-                }
-            });
+        apiCall("logEvaluation", { ...formValues }).then(async d => {
+            if (d.result === "success") {
+                Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
+                fetchEvaluationsForAgent(formValues.agentName);
+                fetchFeedbackLogs().then(() => { loadFeedbackList(); });
+            } else {
+                Swal.fire('Hata', d.message, 'error');
+            }
+        });
     }
 }
 async function fetchEvaluationsForAgent(forcedName, silent = false) {
@@ -4198,19 +4352,11 @@ async function fetchEvaluationsForAgent(forcedName, silent = false) {
         const periodSelect = document.getElementById('q-eval-month');
         const selectedPeriod = periodSelect ? periodSelect.value : null;
 
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "fetchEvaluations",
-                targetAgent: targetAgent,
-                targetGroup: targetGroup,
-                period: selectedPeriod,
-                username: currentUser,
-                token: getToken()
-            })
+        const data = await apiCall("fetchEvaluations", {
+            targetAgent: targetAgent,
+            targetGroup: targetGroup,
+            period: selectedPeriod
         });
-        const data = await response.json();
 
         if (data.result === "success") {
             // En yeni en üstte olması için ters çevir
