@@ -2695,8 +2695,8 @@ function renderDashAgentScores(evals) {
 
     if (filteredRows.length === 0) { box.style.display = 'none'; return; }
 
-    // İlk 8 kişiyi göster
-    const top = filteredRows.slice(0, 8);
+    // Tüm kişileri göster (CSS ile gerekirse kaydırılabilir)
+    const top = filteredRows;
 
     box.innerHTML = top.map(r => `
         <div class="das-item">
@@ -3178,8 +3178,14 @@ const valueLabelPlugin = {
                 const txt = format(raw, i, chart);
                 if (!txt) return;
                 const pos = el.tooltipPosition();
-                const dy = (type === 'bar') ? -10 : -12;
-                ctx.fillText(txt, pos.x, pos.y + dy);
+                const isHorizontal = chart.config.options.indexAxis === 'y';
+                if (isHorizontal && type === 'bar') {
+                    ctx.textAlign = 'right';
+                    ctx.fillText(txt, pos.x - 10, pos.y);
+                } else {
+                    const dy = (type === 'bar') ? -10 : -12;
+                    ctx.fillText(txt, pos.x, pos.y + dy);
+                }
             });
         });
 
@@ -3419,7 +3425,7 @@ function renderDashboardGroupAvgChart(data) {
                 backgroundColor: '#1e293b',
                 hoverBackgroundColor: '#CF0A2C',
                 borderRadius: 4,
-                barThickness: 16
+                barThickness: 18
             }]
         },
         options: {
@@ -3433,7 +3439,11 @@ function renderDashboardGroupAvgChart(data) {
             },
             plugins: {
                 legend: { display: false },
-                valueLabelPlugin: { formatter: (v) => `${Number(v).toFixed(1)}` },
+                valueLabelPlugin: {
+                    formatter: (v) => `${Number(v).toFixed(1)}`,
+                    color: '#ffffff',
+                    font: '900 13px "Inter", sans-serif'
+                },
                 tooltip: {
                     backgroundColor: 'rgba(14, 27, 66, 0.95)',
                     callbacks: {
