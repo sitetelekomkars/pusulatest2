@@ -59,8 +59,55 @@ const sb = (window.supabase && typeof window.supabase.createClient === 'function
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     : null;
 
-// SCRIPT_URL ve apiCall kaldırıldı. Tüm işlemler Supabase üzerinden yürütülmektedir.
-// Aşağıdaki apiCall fonksiyonu, eski kodların çalışabilmesi için Supabase üzerine bir köprü (wrapper) görevi görür.
+// ⚠️ KRİTİK FIX: Supabase PascalCase/Türkçe → Frontend camelCase dönüşümü
+function normalizeKeys(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(normalizeKeys);
+
+    const n = {};
+    Object.keys(obj).forEach(k => {
+        // Orijinal key'i koru
+        n[k] = obj[k];
+
+        // Lowercase versiyonu her zaman ekle
+        const lower = k.toLowerCase().replace(/\s+/g, '');
+        n[lower] = obj[k];
+
+        // --- ÖZEL MAPPINGLER (Ekran görüntülerinden analiz edildi) ---
+
+        // Personel / Kullanıcı
+        if (k === 'AgentName' || k === 'Username' || k === 'Temsilci' || k === 'Name' || k === 'İsim') {
+            n.agent = obj[k]; n.agentName = obj[k]; n.username = obj[k]; n.temsilci = obj[k]; n.name = obj[k];
+        }
+
+        // Çağrı / Değerlendirme Bilgileri
+        if (k === 'CallID' || k === 'CallId' || k === 'Call_ID') n.callId = obj[k];
+        if (k === 'CallDate' || k === 'Tarih' || k === 'Date') { n.callDate = obj[k]; n.date = obj[k]; }
+        if (k === 'Score' || k === 'Puan') n.score = obj[k];
+        if (k === 'Okundu') n.isSeen = (obj[k] === 1 || obj[k] === true);
+        if (k === 'Durum' || k === 'Status') n.status = obj[k];
+        if (k === 'FeedbackType') n.feedbackType = obj[k];
+
+        // İçerik / Başlık / Metin
+        if (k === 'Başlık' || k === 'Teklif Adı' || k === 'Title' || k === 'Key' || k === 'BlockId') { n.title = obj[k]; n.head = obj[k]; n.blockId = obj[k]; n.key = obj[k]; }
+        if (k === 'İçerik' || k === 'Açıklama' || k === 'Description' || k === 'Metin' || k === 'Script' || k === 'Soru_Metinleri' || k === 'Soru') { n.content = obj[k]; n.text = obj[k]; n.description = obj[k]; n.script = obj[k]; n.questions = obj[k]; }
+        if (k === 'Kategori' || k === 'Segment' || k === 'TargetGroup' || k === 'Konu') { n.category = obj[k]; n.segment = obj[k]; n.group = obj[k]; n.subject = obj[k]; }
+        if (k === 'Görsel' || k === 'Image' || k === 'Link') { n.image = obj[k]; n.link = obj[k]; }
+
+        // Yayın Akışı (Special table keys)
+        if (k === 'DATE') n.date = obj[k];
+        if (k === 'EVENT NAME - Turkish') n.match = obj[k];
+        if (k === 'KO/ START TIME TSİ') n.time = obj[k];
+        if (k === 'ANNOUNCER') n.channel = obj[k];
+
+        // Notlar / Detaylar
+        if (k === 'Details' || k === 'Detay') n.details = obj[k];
+        if (k === 'Feedback' || k === 'Geri Bildirim') n.feedback = obj[k];
+        if (k === 'Temsilci Notu' || k === 'AgentNote') n.agentNote = obj[k];
+        if (k === 'Yönetici Cevabı' || k === 'ManagerReply') n.managerReply = obj[k];
+    });
+    return n;
+}
 
 async function apiCall(action, params = {}) {
     console.log(`[Pusula] apiCall: ${action}`, params);
@@ -94,7 +141,7 @@ async function apiCall(action, params = {}) {
                 }
                 const { data, error } = await query.order('id', { ascending: false });
                 if (error) throw error;
-                return { result: "success", evaluations: data };
+                return { result: "success", evaluations: data.map(normalizeKeys) };
             }
             case "logEvaluation": {
                 const { data, error } = await sb.from('Evaluations').insert([{
@@ -132,7 +179,7 @@ async function apiCall(action, params = {}) {
             case "getTrainings": {
                 const { data, error } = await sb.from('Trainings').select('*');
                 if (error) throw error;
-                return { result: "success", trainings: data };
+                return { result: "success", trainings: (data || []).map(normalizeKeys) };
             }
             case "startTraining": {
                 // Trainings tablosunda kullanıcı bazlı tamamlanma durumunu tutan ayrı bir tablo (TrainingStatus) olabilir.
@@ -163,21 +210,9 @@ async function apiCall(action, params = {}) {
                 return { result: "success" };
             }
             case "getUserList": {
-                // Users bilgisini RolePermissions tablosundan veya varsa Users tablosundan çek
-                // Şimdilik RolePermissions'daki benzersiz kullanıcıları/rolleri baz alalım veya dummy dönelim.
-                // Aslında RolePermissions yetkileri tutuyor. Kullanıcı listesi ayrı olabilir.
                 const { data, error } = await sb.from('Users').select('*');
-                if (error) {
-                    // Users tablosu yoksa RolePermissions'dan rolleri dönelim (geçici çözüm)
-                    return { result: "success", users: [] };
-                }
-                // Normalize Users rows to expected shape: {name, role, group}
-                const users = (data || []).map(r => {
-                    const name = r.name ?? r.username ?? r.Username ?? r.USERNAME ?? r["Username"] ?? r["username"] ?? r["Name"] ?? r["NAME"];
-                    const role = r.role ?? r.Role ?? r.ROLE ?? r["Role"] ?? r["role"];
-                    const group = r.group ?? r.Group ?? r.GRUP ?? r.Grup ?? r["Group"] ?? r["group"] ?? r["Grup"] ?? r["GRUP"];
-                    return { name, role, group };
-                }).filter(u => u.name);
+                if (error) return { result: "success", users: [] };
+                const users = (data || []).map(normalizeKeys).filter(u => u.name || u.username);
                 return { result: "success", users: users };
             }
             case "getCriteria": {
@@ -216,11 +251,11 @@ async function apiCall(action, params = {}) {
             case "fetchFeedbackLogs": {
                 const { data, error } = await sb.from('Feedback_Logs').select('*');
                 if (error) throw error;
-                return { result: "success", feedbackLogs: data };
+                return { result: "success", feedbackLogs: (data || []).map(normalizeKeys) };
             }
             case "getTelesalesOffers": {
                 const { data, error } = await sb.from('Telesatis_DataTeklifleri').select('*');
-                return { result: "success", data: data || [] };
+                return { result: "success", data: (data || []).map(normalizeKeys) };
             }
             case "saveAllTelesalesOffers": {
                 // Mevcut tüm teklifleri tek seferde değiştiren bir yapı (dikkatli kullanilmali)
@@ -230,7 +265,7 @@ async function apiCall(action, params = {}) {
             }
             case "getTelesalesScripts": {
                 const { data, error } = await sb.from('Telesatis_Scripts').select('*');
-                return { result: "success", items: data || [] };
+                return { result: "success", items: (data || []).map(normalizeKeys) };
             }
             case "saveTelesalesScripts": {
                 await sb.from('Telesatis_Scripts').delete().neq('id', 0);
@@ -239,7 +274,7 @@ async function apiCall(action, params = {}) {
             }
             case "getTechDocs": {
                 const { data, error } = await sb.from('Teknik_Dokumanlar').select('*');
-                return { result: "success", data: data || [] };
+                return { result: "success", data: (data || []).map(normalizeKeys) };
             }
             case "getTechDocCategories": {
                 const { data, error } = await sb.from('Teknik_Dokumanlar').select('Kategori');
@@ -282,7 +317,7 @@ async function apiCall(action, params = {}) {
                     console.warn("[Pusula] BroadcastFlow fetch error:", error);
                     return { result: "success", items: [] };
                 }
-                return { result: "success", items: data || [] };
+                return { result: "success", items: (data || []).map(normalizeKeys) };
             }
             case "deleteTechDoc": {
                 const { error } = await sb.from('Teknik_Dokumanlar').delete().match({
