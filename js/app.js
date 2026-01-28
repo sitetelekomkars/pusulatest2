@@ -1,3 +1,5 @@
+
+
 function formatWeekLabel(raw) {
     try {
         if (!raw) return '';
@@ -486,31 +488,61 @@ async function girisYap() {
     try {
         const hashedPass = CryptoJS.SHA256(uPass).toString();
 
-        // --- SUPABASE LOGIN (Flexible Search) ---
-        // Kullanıcı adını büyük/küçük harf gözetmeksizin ara (ilike)
-        const { data, error } = await sb
+        // --- SUPABASE LOGIN (Enhanced Diagnostics) ---
+        // 1. Önce tam eşleşme veya büyük/küçük harf duyarsız dene
+        let { data: user, error: loginErr } = await sb
             .from('Users')
             .select('*')
-            .ilike('Username', uName)
-            .single();
+            .ilike('Username', uName.trim())
+            .maybeSingle();
+
+        // 2. Eğer ilk sorguda bulunamadıysa, belki sütun adı küçük harftir?
+        if (!user && !loginErr) {
+            console.warn("[Pusula Login] 'Username' sütununda bulunamadı, 'username' (küçük harf) deneniyor...");
+            const { data: altUser } = await sb
+                .from('Users')
+                .select('*')
+                .ilike('username', uName.trim())
+                .maybeSingle();
+            user = altUser;
+        }
 
         loadingMsg.style.display = "none";
         document.querySelector('.login-btn').disabled = false;
 
-        if (error || !data) {
-            console.error("[Pusula Login] Kullanıcı bulunamadı veya hata:", error);
-            errorMsg.innerText = "Hatalı Kullanıcı Adı veya Şifre!";
+        if (loginErr) {
+            console.error("[Pusula Login] Sorgu sırasında hata oluştu:", loginErr);
+            errorMsg.innerText = "Sistem Hatası: " + loginErr.message;
             errorMsg.style.display = "block";
             return;
         }
 
-        // Şifre kontrolü (Manuel kontrol daha güvenli debug sağlar)
-        if (data.Password !== hashedPass) {
-            console.warn("[Pusula Login] Şifre eşleşmedi.");
-            errorMsg.innerText = "Hatalı Kullanıcı Adı veya Şifre!";
+        if (!user) {
+            console.error("[Pusula Login] '" + uName + "' kullanıcısı bulunamadı. Tabloyu ve sütun adını kontrol edin.");
+            // Alternatif: Tablodaki ilk 3 kullanıcı çekmeye çalışıp konsola yazalım (Sadece debug için)
+            const { data: testData } = await sb.from('Users').select('*').limit(3);
+            console.log("[Pusula Debug] Tablodaki örnek veriler:", testData);
+
+            errorMsg.innerText = "Kullanıcı Adı veya Şifre Hatalı!";
             errorMsg.style.display = "block";
             return;
         }
+
+        // Şifre kontrolü
+        if (user.Password !== hashedPass && user.password !== hashedPass) {
+            console.warn("[Pusula Login] Şifre eşleşmedi.");
+            errorMsg.innerText = "Kullanıcı Adı veya Şifre Hatalı!";
+            errorMsg.style.display = "block";
+            return;
+        }
+
+        // Veri eşleme (Geriye uyumluluk için büyük harf/küçük harf karmaşasını çöz)
+        const data = {
+            Username: user.Username || user.username,
+            Role: user.Role || user.role,
+            Group: user.Group || user.group,
+            ForceChange: user.ForceChange ?? user.forcechange ?? user.Forcechange
+        };
 
         // Oturum Verilerini Kaydet
         currentUser = data.Username;
