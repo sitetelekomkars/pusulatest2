@@ -1,5 +1,3 @@
-
-
 function formatWeekLabel(raw) {
     try {
         if (!raw) return '';
