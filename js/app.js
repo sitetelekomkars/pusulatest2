@@ -75,16 +75,10 @@ async function apiCall(action, payload = {}, retries = 2) {
             body: JSON.stringify({ action, username, token, ip, ...payload })
         });
         const json = await res.json();
-        if (json.result !== "success") throw new Error(json.message || json.error || "API error");
         return json;
     } catch (err) {
-        const errMsg = String(err.message || err || "").toLowerCase();
-        if (retries > 0 && (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('failed'))) {
-            console.warn(`[Pusula] Retry ${3 - retries} for ${action}:`, err);
-            await new Promise(r => setTimeout(r, 1000));
-            return apiCall(action, payload, retries - 1);
-        }
-        throw err;
+        console.warn("[Pusula] apiCall (GAS) sessizce başarısız oldu:", err);
+        return { result: "error", message: "GAS offline" };
     }
 }
 
@@ -743,23 +737,41 @@ async function changePasswordPopup(isMandatory = false) {
     });
     if (formValues) {
         Swal.fire({ title: 'İşleniyor...', didOpen: () => { Swal.showLoading() } });
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "changePassword", username: currentUser,
-                oldPass: CryptoJS.SHA256(formValues[0]).toString(),
-                newPass: CryptoJS.SHA256(formValues[1]).toString(),
-                token: getToken()
-            })
-        }).then(response => response.json()).then(data => {
-            if (data.result === "success") {
-                localStorage.removeItem("sSportForceChange"); // Başarılı olunca bayrağı kaldır
-                Swal.fire('Başarılı!', 'Şifreniz güncellendi. Yeniden giriş yapınız.', 'success').then(() => { logout(); });
-            } else {
-                Swal.fire('Hata', data.message || 'İşlem başarısız.', 'error').then(() => { if (isMandatory) changePasswordPopup(true); });
+        try {
+            const oldHashed = CryptoJS.SHA256(formValues[0]).toString();
+            const newHashed = CryptoJS.SHA256(formValues[1]).toString();
+
+            // 1. Önce eski şifreyi doğrula (Supabase'den tekrar çekerek)
+            const { data: userRecord, error: checkError } = await sb
+                .from('Users')
+                .select('Password, password')
+                .ilike('Username', currentUser)
+                .single();
+
+            if (checkError) throw checkError;
+            if (!userRecord) throw new Error("Kullanıcı bulunamadı.");
+
+            const currentPassDB = userRecord.Password || userRecord.password;
+            if (currentPassDB !== oldHashed) {
+                throw new Error("Mevcut şifreniz hatalı!");
             }
-        }).catch(err => { Swal.fire('Hata', 'Sunucu hatası.', 'error'); if (isMandatory) changePasswordPopup(true); });
+
+            // 2. Yeni şifreyi güncelle
+            const { error: updateError } = await sb
+                .from('Users')
+                .update({ Password: newHashed, ForceChange: '1' })
+                .ilike('Username', currentUser);
+
+            if (updateError) throw updateError;
+
+            localStorage.removeItem("sSportForceChange"); // Başarılı olunca bayrağı kaldır
+            Swal.fire('Başarılı!', 'Şifreniz güncellendi. Yeniden giriş yapınız.', 'success').then(() => { logout(); });
+        } catch (err) {
+            console.error("Password change error:", err);
+            Swal.fire('Hata', err.message || 'Şifre değiştirme başarısız.', 'error').then(() => {
+                if (isMandatory) changePasswordPopup(true);
+            });
+        }
     } else if (isMandatory) { changePasswordPopup(true); }
 }
 // --- DATA FETCHING (Supabase Optimized) ---
@@ -910,27 +922,49 @@ function loadContentData() {
         if (!loadedFromCache) document.getElementById('loading').innerHTML = 'Bağlantı Hatası! Sunucuya ulaşılamıyor.';
     }).finally(() => { try { __dataLoadedResolve && __dataLoadedResolve(); } catch (e) { } });
 }
-function loadWizardData() {
-    return new Promise((resolve, reject) => {
-        fetch(SCRIPT_URL, {
-            method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "getWizardData" })
-        }).then(response => response.json()).then(data => {
-            if (data.result === "success" && data.steps) { wizardStepsData = data.steps; resolve(); }
-            else { wizardStepsData = {}; reject(new Error("Wizard verisi yüklenemedi.")); }
-        }).catch(error => { wizardStepsData = {}; reject(error); });
-    });
+// --- WIZARD İŞLEMLERİ (Supabase) ---
+async function loadWizardData() {
+    try {
+        const { data, error } = await sb.from('WizardSteps').select('*');
+        if (error) throw error;
+
+        wizardStepsData = {};
+        data.forEach(row => {
+            const stepId = String(row.StepID).trim();
+            const opts = [];
+            if (row.Options) {
+                String(row.Options).split(',').forEach(p => {
+                    const parts = p.trim().split('|');
+                    if (parts.length === 2) opts.push({ text: parts[0].trim(), next: parts[1].trim() });
+                });
+            }
+            wizardStepsData[stepId] = { title: row.Title, text: row.Text, script: row.Script, result: row.Result, options: opts };
+        });
+    } catch (err) {
+        console.error("[Pusula] Wizard Fetch Error:", err);
+    }
 }
-function loadTechWizardData() {
-    return new Promise((resolve, reject) => {
-        fetch(SCRIPT_URL, {
-            method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "getTechWizardData" })
-        }).then(response => response.json()).then(data => {
-            if (data.result === "success" && data.steps) { techWizardData = data.steps; resolve(); }
-            else { techWizardData = {}; }
-        }).catch(error => { techWizardData = {}; });
-    });
+
+async function loadTechWizardData() {
+    try {
+        const { data, error } = await sb.from('TechWizardSteps').select('*');
+        if (error) throw error;
+
+        techWizardData = {}; // Global değişken ismini kontrol et
+        data.forEach(row => {
+            const stepId = String(row.StepID).trim();
+            const btns = [];
+            if (row.Buttons) {
+                String(row.Buttons).split(',').forEach(b => {
+                    const p = b.trim().split('|');
+                    if (p.length >= 2) btns.push({ text: p[0], next: p[1], style: p[2] || 'primary' });
+                });
+            }
+            techWizardData[stepId] = { title: row.Title, text: row.Text, script: row.Script, alert: row.Alert, buttons: btns };
+        });
+    } catch (err) {
+        console.error("[Pusula] TechWizard Fetch Error:", err);
+    }
 }
 // --- RENDER & FILTERING ---
 const DISPLAY_LIMIT = 50;
