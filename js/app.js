@@ -4612,10 +4612,7 @@ function updateAgentListBasedOnGroup() {
 }
 function fetchUserListForAdmin() {
     return new Promise((resolve) => {
-        fetch(SCRIPT_URL, {
-            method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "getUserList", username: currentUser, token: getToken() })
-        }).then(response => response.json()).then(data => {
+        apiCall("getUserList", {}).then(data => {
             if (data.result === "success") {
                 // Sadece rütbesi 'user' veya 'qusers' olanları (temsilcileri) göster
                 // Yönetim grubunu ve Admin/LocAdmin rütbelerini listeden temizle
@@ -4631,10 +4628,7 @@ function fetchUserListForAdmin() {
 }
 function fetchCriteria(groupName) {
     return new Promise((resolve) => {
-        fetch(SCRIPT_URL, {
-            method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "getCriteria", group: groupName, username: currentUser, token: getToken() })
-        }).then(response => response.json()).then(data => {
+        apiCall("getCriteria", { group: groupName }).then(data => {
             if (data.result === "success") resolve(data.criteria || []); else resolve([]);
         }).catch(err => resolve([]));
     });
@@ -4703,16 +4697,13 @@ async function exportEvaluations() {
 
     Swal.fire({ title: 'Rapor Hazırlanıyor...', html: 'Veriler işleniyor, lütfen bekleyin.<br>Bu işlem veri yoğunluğuna göre biraz sürebilir.', didOpen: () => Swal.showLoading() });
 
-    fetch(SCRIPT_URL, {
-        method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-            action: "exportEvaluations",
-            targetAgent: agentSelect ? agentSelect.value : 'all',
-            targetGroup: groupSelect ? groupSelect.value : 'all',
-            targetPeriod: selectedPeriod, // YENİ PARAMETRE
-            username: currentUser, token: getToken()
-        })
-    }).then(r => r.json()).then(data => {
+    Swal.fire({ title: 'Rapor Hazırlanıyor...', html: 'Veriler işleniyor, lütfen bekleyin.<br>Bu işlem veri yoğunluğuna göre biraz sürebilir.', didOpen: () => Swal.showLoading() });
+
+    apiCall("exportEvaluations", {
+        targetAgent: agentSelect ? agentSelect.value : 'all',
+        targetGroup: groupSelect ? groupSelect.value : 'all',
+        targetPeriod: selectedPeriod
+    }).then(data => {
         if (data.result === "success" && data.data) {
 
             // --- EXCEL OLUŞTURUCU (HTML TABLE YÖNTEMİ) ---
@@ -4987,12 +4978,8 @@ async function logEvaluationPopup() {
     });
     if (formValues) {
         Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading() });
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: "logEvaluation", username: currentUser, token: getToken(), ...formValues })
-        })
-            .then(r => r.json()).then(d => {
+        apiCall("logEvaluation", { ...formValues })
+            .then(d => {
                 if (d.result === "success") {
                     Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
                     // DÜZELTME: Hem evaluations hem de feedback logs güncellenmeli
@@ -5117,10 +5104,7 @@ async function editEvaluation(targetCallId) {
 
     if (formValues) {
         Swal.fire({ title: 'Güncelleniyor...', didOpen: () => Swal.showLoading() });
-        fetch(SCRIPT_URL, {
-            method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: "updateEvaluation", username: currentUser, token: getToken(), ...formValues })
-        }).then(r => r.json()).then(d => {
+        apiCall("updateEvaluation", { ...formValues }).then(d => {
             if (d.result === "success") {
                 Swal.fire({ icon: 'success', title: 'Güncellendi', timer: 1500, showConfirmButton: false });
                 fetchEvaluationsForAgent(agentName);
@@ -5543,12 +5527,7 @@ function addTelesalesOffer() {
         Swal.fire({ title: 'Ekleniyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
         try {
             telesalesOffers.unshift(v);
-            const r = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'saveAllTelesalesOffers', username: currentUser, token: getToken(), offers: telesalesOffers })
-            });
-            const d = await r.json();
+            const d = await apiCall("saveAllTelesalesOffers", { offers: telesalesOffers });
             if (d.result === 'success') {
                 Swal.fire({ icon: 'success', title: 'Eklendi', timer: 1200, showConfirmButton: false });
                 renderTelesalesDataOffers();
@@ -5596,12 +5575,7 @@ async function editTelesalesOffer(idx) {
     const oldVal = telesalesOffers[idx];
     telesalesOffers[idx] = { ...oldVal, ...v };
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'saveAllTelesalesOffers', username: currentUser, token: getToken(), offers: telesalesOffers })
-        });
-        const d = await r.json();
+        const d = await apiCall("saveAllTelesalesOffers", { offers: telesalesOffers });
         if (d.result === 'success') {
             Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1200, showConfirmButton: false });
             renderTelesalesDataOffers();
@@ -5627,12 +5601,7 @@ function deleteTelesalesOffer(idx) {
         const oldVal = telesalesOffers[idx];
         telesalesOffers.splice(idx, 1);
         try {
-            const r = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'saveAllTelesalesOffers', username: currentUser, token: getToken(), offers: telesalesOffers })
-            });
-            const d = await r.json();
+            const d = await apiCall("saveAllTelesalesOffers", { offers: telesalesOffers });
             if (d.result === 'success') {
                 renderTelesalesDataOffers();
                 Swal.fire({ icon: 'success', title: 'Silindi', timer: 1000, showConfirmButton: false });
@@ -6481,14 +6450,11 @@ async function addTechCardSheet() {
     });
     if (!v) return;
 
+    if (!v) return;
+
     Swal.fire({ title: 'Ekleniyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'addCard', username: currentUser, token: getToken(), ...v })
-        });
-        const d = await r.json();
+        const d = await apiCall("addCard", { ...v });
         if (d.result === 'success') {
             Swal.fire({ icon: 'success', title: 'Eklendi', timer: 1200, showConfirmButton: false });
             await loadContentData();
@@ -6672,7 +6638,6 @@ function __normalizeTechCategory(cat) {
 
 
 async function __fetchTechDocs() {
-    if (!SCRIPT_URL) throw new Error("SCRIPT_URL missing");
     const data = await apiCall("getTechDocs");
     const rows = Array.isArray(data.data) ? data.data : [];
     return rows
@@ -6693,14 +6658,8 @@ async function __fetchTechDocs() {
 
 async function __fetchTechDocCategories() {
     // K sütunundan okunan kategori listesi (boşsa A sütunundan türetilir)
-    if (!SCRIPT_URL) return [];
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: 'getTechDocCategories' })
-        });
-        const d = await r.json();
+        const d = await apiCall("getTechDocCategories");
         if (d && d.result === 'success' && Array.isArray(d.categories)) return d.categories;
         return [];
     } catch (e) {
@@ -6807,12 +6766,7 @@ let __techCategoryOptions = null;
 async function loadTechCategoryOptions() {
     if (__techCategoryOptions) return __techCategoryOptions;
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'getTechDocCategories' })
-        });
-        const d = await r.json();
+        const d = await apiCall("getTechDocCategories");
         if (d && d.result === 'success' && Array.isArray(d.categories)) {
             __techCategoryOptions = d.categories.filter(Boolean);
             return __techCategoryOptions;
@@ -6875,12 +6829,7 @@ async function addTechDoc(tabKey) {
 
     Swal.fire({ title: 'Ekleniyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'upsertTechDoc', username: currentUser, token: getToken(), keyKategori: '', keyBaslik: '', ...v })
-        });
-        const d = await r.json();
+        const d = await apiCall("upsertTechDoc", { keyKategori: '', keyBaslik: '', ...v });
         if (d.result === 'success') {
             Swal.fire({ icon: 'success', title: 'Eklendi', timer: 1200, showConfirmButton: false });
             await loadTechDocsIfNeeded(true);
