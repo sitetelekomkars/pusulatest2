@@ -62,30 +62,6 @@ const sb = (window.supabase && typeof window.supabase.createClient === 'function
 // SCRIPT_URL ve apiCall kaldırıldı. Tüm işlemler Supabase üzerinden yürütülmektedir.
 // Aşağıdaki apiCall fonksiyonu, eski kodların çalışabilmesi için Supabase üzerine bir köprü (wrapper) görevi görür.
 
-// ⚠️ KRİTİK FIX: Supabase PascalCase → Frontend camelCase dönüşümü
-function normalizeKeys(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj.map(normalizeKeys);
-
-    const n = {};
-    Object.keys(obj).forEach(k => {
-        // Hem orijinal hem de lowercase/camelCase versiyonları tut
-        n[k] = obj[k];
-        const lower = k.toLowerCase();
-        n[lower] = obj[k];
-
-        // Kritik mappingler
-        if (k === 'AgentName') { n.agent = obj[k]; n.agentName = obj[k]; }
-        if (k === 'CallId') n.callId = obj[k];
-        if (k === 'CallDate') n.callDate = obj[k];
-        if (k === 'IsSeen') n.isSeen = obj[k];
-        if (k === 'FeedbackType') n.feedbackType = obj[k];
-        if (k === 'AgentNote') n.agentNote = obj[k];
-        if (k === 'ManagerReply') n.managerReply = obj[k];
-    });
-    return n;
-}
-
 async function apiCall(action, params = {}) {
     console.log(`[Pusula] apiCall: ${action}`, params);
     try {
@@ -112,25 +88,56 @@ async function apiCall(action, params = {}) {
                 return { result: "success" };
             }
             case "fetchEvaluations": {
+                // Supabase kayıtları (Date/CallID/AgentName...) -> UI'nin beklediği (date/callId/agentName...) formata normalize edilir.
                 let query = sb.from('Evaluations').select('*');
+
                 if (params.targetAgent && params.targetAgent !== 'all') {
                     query = query.eq('AgentName', params.targetAgent);
                 }
+                if (params.targetGroup && params.targetGroup !== 'all') {
+                    query = query.eq('Group', params.targetGroup);
+                }
+
                 const { data, error } = await query.order('id', { ascending: false });
                 if (error) throw error;
 
-                console.log('[Pusula] fetchEvaluations RAW:', data);
-                const normalized = (data || []).map(e => {
-                    const n = normalizeKeys(e);
-                    // Ekstra mappingler ChatGPT versiyonu için
-                    if (e.CallID) n.callId = e.CallID;
-                    if (e.Okundu !== undefined) n.isSeen = e.Okundu === 1 || e.Okundu === true;
-                    if (e.Durum) n.status = e.Durum;
-                    return n;
-                });
-                console.log('[Pusula] fetchEvaluations NORMALIZED:', normalized);
-                return { result: "success", evaluations: normalized };
+                const pad2 = (n) => String(n).padStart(2, '0');
+                const toDMY = (v) => {
+                    if (!v) return "";
+                    const d = new Date(v);
+                    if (isNaN(d)) return "";
+                    return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+                };
+
+                const evaluations = (data || []).map(e => ({
+                    id: e.id ?? e.ID ?? null,
+                    dateISO: e.Date ?? e.date ?? null,
+                    date: toDMY(e.Date ?? e.date),
+                    evaluator: e.Evaluator ?? e.evaluator ?? "",
+                    agentName: e.AgentName ?? e.agentname ?? "",
+                    group: e.Group ?? e.group ?? "",
+                    callId: e.CallID ?? e.callid ?? "",
+                    score: e.Score ?? e.score ?? null,
+                    details: e.Details ?? e.details ?? null,
+                    feedback: e.Feedback ?? e.feedback ?? null,
+                    feedbackType: e.FeedbackType ?? e.feedbacktype ?? null,
+                    callDate: e.CallDate ?? e.calldate ?? null,
+                    okundu: e.Okundu ?? e.okundu ?? null,
+                    temsilciNotu: e["Temsilci Notu"] ?? e.temsilci_notu ?? null,
+                    yoneticiCevabi: e["Yönetici Cevabı"] ?? e.yonetici_cevabi ?? null,
+                    durum: e.Durum ?? e.durum ?? null,
+                    // geri uyumluluk
+                    AgentName: e.AgentName ?? e.agentname ?? "",
+                    Group: e.Group ?? e.group ?? "",
+                    CallID: e.CallID ?? e.callid ?? "",
+                    Date: e.Date ?? e.date ?? null,
+                    Score: e.Score ?? e.score ?? null,
+                    Details: e.Details ?? e.details ?? null,
+                }));
+
+                return { result: "success", evaluations };
             }
+
             case "logEvaluation": {
                 const { data, error } = await sb.from('Evaluations').insert([{
                     AgentName: params.agentName,
@@ -198,21 +205,46 @@ async function apiCall(action, params = {}) {
                 return { result: "success" };
             }
             case "getUserList": {
-                // Users bilgisini RolePermissions tablosundan veya varsa Users tablosundan çek
-                // Şimdilik RolePermissions'daki benzersiz kullanıcıları/rolleri baz alalım veya dummy dönelim.
-                // Aslında RolePermissions yetkileri tutuyor. Kullanıcı listesi ayrı olabilir.
                 const { data, error } = await sb.from('Users').select('*');
-                if (error) {
-                    // Users tablosu yoksa RolePermissions'dan rolleri dönelim (geçici çözüm)
-                    return { result: "success", users: [] };
-                }
-                return { result: "success", users: data };
-            }
-            case "getCriteria": {
-                const { data, error } = await sb.from('Criteria').select('*').eq('category', params.group);
                 if (error) throw error;
-                return { result: "success", criteria: data };
+                const users = (data || []).map(u => ({
+                    id: u.id ?? u.ID ?? null,
+                    username: u.Username ?? u.username ?? "",
+                    role: u.Role ?? u.role ?? "",
+                    group: u.Group ?? u.group ?? "",
+                    email: u.Email ?? u.email ?? "",
+                    forceChange: u.ForceChange ?? u.forcechange ?? null,
+                    // orijinal alanlar (geri uyumluluk)
+                    Username: u.Username ?? u.username ?? "",
+                    Role: u.Role ?? u.role ?? "",
+                    Group: u.Group ?? u.group ?? ""
+                }));
+                return { result: "success", users };
             }
+
+            case "getCriteria": {
+                // Eski Google Sheet yapısındaki "Criteria" yerine Supabase'te "Settings" tablosu kullanılıyor.
+                // Settings kolonları: Grup, Soru, Puan, Sira, Orta Puan, Kötü Puan
+                const { data, error } = await sb.from('Settings').select('*');
+                if (error) throw error;
+
+                const target = normalizeGroupName(params.group || "");
+                const rows = (data || []).filter(r => normalizeGroupName(r.Grup ?? r.grup ?? r.Group ?? r.group ?? "") === target);
+
+                const criteria = rows
+                    .sort((a, b) => Number(a.Sira ?? 0) - Number(b.Sira ?? 0))
+                    .map(r => ({
+                        q: r.Soru ?? r.soru ?? "",
+                        max: Number(r.Puan ?? r.puan ?? 0),
+                        order: Number(r.Sira ?? r.sira ?? 0),
+                        avg: r["Orta Puan"] ?? r.orta_puan ?? r.OrtaPuan ?? r.ortapuan ?? null,
+                        poor: r["Kötü Puan"] ?? r.kotu_puan ?? r.KotuPuan ?? r.kotupuan ?? null,
+                        group: r.Grup ?? r.grup ?? ""
+                    }));
+
+                return { result: "success", criteria };
+            }
+
             case "getShiftData": {
                 const { data, error } = await sb.from('ShiftData').select('*');
                 if (error) throw error;
@@ -1819,7 +1851,68 @@ async function fetchBroadcastFlow() {
     try {
         const { data, error } = await sb.from('YayinAkisi').select('*');
         if (error) throw error;
-        return data || [];
+
+        const pick = (row, keys, contains) => {
+            for (const k of keys) {
+                if (k in row) return row[k];
+            }
+            if (contains) {
+                const kk = Object.keys(row).find(x => x.toLowerCase().includes(contains.toLowerCase()));
+                if (kk) return row[kk];
+            }
+            return undefined;
+        };
+
+        const toDateISO = (v) => {
+            if (!v) return "";
+            const s = String(v).trim();
+            // "2026-01-27" veya "2026-01-27 00:00:00"
+            const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+            return m ? m[1] : "";
+        };
+
+        const toTime = (v) => {
+            if (!v) return "";
+            const s = String(v).trim();
+            const m = s.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
+            if (!m) return "";
+            const hhmm = m[1].split(':');
+            return `${hhmm[0].padStart(2,'0')}:${hhmm[1].padStart(2,'0')}:00`;
+        };
+
+        const toDateLabelTr = (dateISO) => {
+            try {
+                const d = new Date(dateISO);
+                if (isNaN(d)) return dateISO;
+                return d.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' });
+            } catch (e) {
+                return dateISO;
+            }
+        };
+
+        const mapped = (data || []).map(row => {
+            const dateRaw = pick(row, ['dateISO','DATE','Date','date'], 'date');
+            const timeRaw = pick(row, ['time','KO/ START TIME(TSİ)','KO/ START TIME(TSİ) ', 'KO_START_TIME', 'KO_START', 'StartTime'], 'ko');
+            const titleRaw = pick(row, ['title','EVENT NAME -Turkish','EVENT NAME - Turkish','EventName','EVENT'], 'event');
+            const announcerRaw = pick(row, ['announcer','ANNOUNCER','Announcer'], 'announ');
+
+            const dateISO = toDateISO(dateRaw);
+            const time = toTime(timeRaw);
+            const startEpoch = (dateISO && time) ? new Date(`${dateISO}T${time}`).getTime() : 0;
+
+            return {
+                ...row,
+                dateISO,
+                date: dateISO, // eski kodlar için
+                dateLabelTr: toDateLabelTr(dateISO),
+                time,
+                title: titleRaw ? String(titleRaw) : "",
+                announcer: announcerRaw ? String(announcerRaw) : "",
+                startEpoch
+            };
+        });
+
+        return mapped;
     } catch (err) {
         console.error("[Pusula] YayinAkisi Fetch Error:", err);
         return [];
