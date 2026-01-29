@@ -359,6 +359,7 @@ async function apiCall(action, params = {}) {
                     İçerik: params.icerik,
                     Görsel: params.image || null
                 };
+                if (params.id) payload.id = params.id;
                 const { error } = await sb.from('Teknik_Dokumanlar').upsert(payload, { onConflict: 'Başlık' });
                 return { result: error ? "error" : "success" };
             }
@@ -6944,7 +6945,8 @@ async function __fetchTechDocs() {
             not: (r.Not || "").toString(),
             link: (r.Link || "").toString(),
             image: (r.Resim || r.Image || r.Görsel || r.Gorsel || "").toString(),
-            durum: (r.Durum || "").toString()
+            durum: (r.Durum || "").toString(),
+            id: r.id
         }))
         .filter(x => x.categoryKey && x.baslik);
 }
@@ -7182,12 +7184,12 @@ async function editTechDoc(tabKey, baslik) {
 
     Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
     try {
-        const r = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'upsertTechDoc', username: currentUser, token: getToken(), keyKategori: it.kategori, keyBaslik: it.baslik, ...v })
+        const d = await apiCall("upsertTechDoc", {
+            keyKategori: it.kategori,
+            keyBaslik: it.baslik,
+            id: it.id,
+            ...v
         });
-        const d = await r.json();
         if (d.result === 'success') {
             Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1200, showConfirmButton: false });
             await loadTechDocsIfNeeded(true);
@@ -7215,12 +7217,13 @@ function deleteTechDoc(tabKey, baslik) {
             const all = await loadTechDocsIfNeeded(false);
             const it = all.find(x => x.categoryKey === tabKey && (x.baslik || '') === baslik);
             const keyKategori = it ? it.kategori : tabKey;
-            const r = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'deleteTechDoc', username: currentUser, token: getToken(), keyKategori: keyKategori, keyBaslik: baslik })
+
+            const d = await apiCall("deleteTechDoc", {
+                keyKategori: keyKategori,
+                keyBaslik: baslik,
+                id: it ? it.id : null
             });
-            const d = await r.json();
+
             if (d.result === 'success') {
                 await loadTechDocsIfNeeded(true);
                 filterTechDocList(tabKey);
