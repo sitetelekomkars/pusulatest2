@@ -359,7 +359,6 @@ async function apiCall(action, params = {}) {
                     İçerik: params.icerik,
                     Görsel: params.image || null
                 };
-                if (params.id) payload.id = params.id;
                 const { error } = await sb.from('Teknik_Dokumanlar').upsert(payload, { onConflict: 'Başlık' });
                 return { result: error ? "error" : "success" };
             }
@@ -385,14 +384,254 @@ async function apiCall(action, params = {}) {
                 return { result: error ? "error" : "success" };
             }
             case "getActiveUsers": {
-                // Aktif kullanıcıları izleyen bir tablo (ActiveUsers) olmalı.
-                // Şimdilik boş dönelim.
-                return { result: "success", users: [] };
+    // Tokens tablosundan “son giriş” bilgisi ile yaklaşık aktif kullanıcı listesi
+    // Not: Gerçek aktiflik için heartbeat gerekir; burada pratik bir yaklaşım kullanıyoruz.
+    const hours = Number(params.hours || 8);
+    const sinceISO = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+    // Son X saatte token üretenleri çek
+    const { data: tokens, error: tErr } = await sb
+        .from('Tokens')
+        .select('*')
+        .gte('CreatedAt', sinceISO)
+        .order('CreatedAt', { ascending: false });
+
+    if (tErr) {
+        console.warn('[Pusula] getActiveUsers Tokens error:', tErr);
+        return { result: "success", users: [] };
+    }
+
+    // Kullanıcı bilgileri (rol/grup)
+    const { data: usersRaw } = await sb.from('Users').select('*');
+    const usersMap = new Map();
+    (usersRaw || []).map(normalizeKeys).forEach(u => {
+        const key = (u.username || u.name || '').toString().toLowerCase().trim();
+        if (key) usersMap.set(key, u);
+    });
+
+    // Username bazında en yeni token
+    const latestByUser = new Map();
+    (tokens || []).forEach(t => {
+        const u = (t.Username || t.username || '').toString().trim();
+        if (!u) return;
+        const k = u.toLowerCase();
+        if (!latestByUser.has(k)) latestByUser.set(k, t);
+    });
+
+    const out = [];
+    latestByUser.forEach((t, k) => {
+        const u = usersMap.get(k);
+        out.push({
+            username: (t.Username || t.username || ''),
+            role: (u && (u.role || u.Role)) || (t.Role || t.role) || 'user',
+            group: (u && (u.group || u.Group)) || '',
+            loginTime: t.CreatedAt || t.createdat || '',
+            lastActivity: t.CreatedAt || t.createdat || '',
+            ip: t.IP || t.ip || '',
+            token: t.Token || t.token || ''
+        });
+    });
+
+    return { result: "success", users: out };
+}
+            case "addCard": {
+                // Data tablosuna yeni içerik ekleme
+                const payload = {
+                    Type: params.cardType || params.type || 'card',
+                    Category: params.category || '',
+                    Title: params.title || '',
+                    Text: params.text || '',
+                    Script: params.script || '',
+                    Tags: params.tags || '',
+                    Code: params.code || '',
+                    Link: params.link || '',
+                    Date: params.date || new Date().toISOString(),
+                    Icon: params.icon || '',
+                    Tip: params.tip || '',
+                    Detail: params.detail || '',
+                    Pronunciation: params.pronunciation || '',
+                    QuizOptions: params.quizOptions || '',
+                    QuizAnswer: params.quizAnswer || '',
+                    Status: params.status || 'Aktif',
+                    Image: params.image || ''
+                };
+                const { error } = await sb.from('Data').insert([payload]);
+                if (error) throw error;
+                return { result: "success" };
             }
-            case "getQualityNotifications": {
-                // Şimdilik sıfır dönelim
-                return { result: "success", notifications: { pendingFeedbackCount: 0, unseenCount: 0 } };
+            case "exportEvaluations": {
+                let q = sb.from('Evaluations').select('*');
+                if (params.targetAgent && params.targetAgent !== 'all') q = q.eq('AgentName', params.targetAgent);
+                if (params.targetGroup && params.targetGroup !== 'all') q = q.eq('Group', params.targetGroup);
+
+                const { data, error } = await q.order('id', { ascending: false });
+                if (error) throw error;
+
+                // Dönem filtresi (MM-YYYY)
+                let rows = (data || []).map(normalizeKeys);
+                const period = params.targetPeriod || 'all';
+                if (period && period !== 'all') {
+                    const [mm, yyyy] = String(period).split('-');
+                    rows = rows.filter(r => {
+                        const cd = r.calldate || r.callDate || r.date || '';
+                        const dt = new Date(String(cd).replace(' ', 'T'));
+                        if (isNaN(dt)) return false;
+                        const m = String(dt.getMonth() + 1).padStart(2, '0');
+                        const y = String(dt.getFullYear());
+                        return m === mm && y === yyyy;
+                    });
+                }
+
+                const headers = [
+                    'Tarih', 'Dönem', 'Değerlendiren', 'Temsilci', 'Grup', 'Puan', 'Call ID', 'Durum', 'Temsilci Notu', 'Yönetici Cevabı', 'Geri Bildirim Türü'
+                ];
+
+                const out = rows.map(r => {
+                    const dtRaw = r.calldate || r.callDate || r.date || '';
+                    const dt = new Date(String(dtRaw).replace(' ', 'T'));
+                    const month = isNaN(dt) ? '' : String(dt.getMonth() + 1).padStart(2, '0');
+                    const year = isNaN(dt) ? '' : String(dt.getFullYear());
+                    const donem = month && year ? `${month}.${year}` : '';
+
+                    return [
+                        formatDateToDDMMYYYY(dtRaw) || '',
+                        donem,
+                        r.evaluator || '',
+                        r.agentname || r.agent || '',
+                        r.group || '',
+                        r.score ?? '',
+                        r.callid || '',
+                        r.durum || r.status || '',
+                        r['temsilci notu'] || r.agentNote || '',
+                        r['yönetici cevabı'] || r.managerReply || '',
+                        r.feedbacktype || ''
+                    ];
+                });
+
+                const fileName = period && period !== 'all' ? `Kalite_Rapor_${period}.xls` : 'Kalite_Rapor_TumZamanlar.xls';
+                return { result: "success", headers, data: out, fileName };
             }
+            case "submitAgentNote": {
+                const note = params.note || '';
+                const status = params.status || 'Bekliyor';
+                const { error } = await sb.from('Evaluations').update({
+                    'Temsilci Notu': note,
+                    'Durum': status,
+                    Okundu: 0
+                }).eq('CallID', params.callId);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "resolveAgentFeedback": {
+                const reply = params.reply || '';
+                const status = params.status || 'Tamamlandı';
+                const { error } = await sb.from('Evaluations').update({
+                    'Yönetici Cevabı': reply,
+                    'Durum': status,
+                    Okundu: 0
+                }).eq('CallID', params.callId);
+                if (error) throw error;
+                return { result: "success" };
+            }
+            case "logQuiz": {
+                const score = Number(params.score || 0);
+                const total = Number(params.total || 0);
+                const rate = total > 0 ? `%${Math.round((score / total) * 10)}` : '';
+                const { error } = await sb.from('QuizResults').insert([{ Username: params.username || currentUser, Score: score, TotalQuestions: total, SuccessRate: rate, Date: new Date().toISOString() }]);
+                return { result: error ? 'error' : 'success' };
+            }
+            case "kickUser": {
+                // Hedef kullanıcının token kayıtlarını sil
+                const targetUsername = params.targetUsername;
+                if (!targetUsername) return { result: 'error', message: 'Kullanıcı bulunamadı' };
+                const q = sb.from('Tokens').delete().eq('Username', targetUsername);
+                await q;
+                return { result: 'success' };
+            }
+            case "uploadImage": {
+                // Supabase Storage'a base64 upload. Bucket adı sırayla denenir.
+                const b64 = params.base64 || '';
+                const mime = params.mimeType || 'application/octet-stream';
+                const fileName = params.fileName || `image_${Date.now()}`;
+
+                const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                const path = `${Date.now()}_${fileName}`.replace(/\s+/g, '_');
+
+                const buckets = ['images', 'public', 'uploads'];
+                let lastErr = null;
+                for (const bucket of buckets) {
+                    try {
+                        const up = await sb.storage.from(bucket).upload(path, bin, { contentType: mime, upsert: true });
+                        if (up.error) throw up.error;
+                        const pub = sb.storage.from(bucket).getPublicUrl(path);
+                        const url = pub && pub.data && pub.data.publicUrl ? pub.data.publicUrl : '';
+                        if (!url) throw new Error('Public URL üretilemedi');
+                        return { result: 'success', url };
+                    } catch (e) {
+                        lastErr = e;
+                    }
+                }
+                return { result: 'error', message: (lastErr && lastErr.message) ? lastErr.message : 'Yükleme başarısız' };
+            }
+            case "uploadTrainingDoc": {
+                const b64 = params.base64 || '';
+                const mime = params.mimeType || 'application/octet-stream';
+                const fileName = params.fileName || `doc_${Date.now()}`;
+                const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                const path = `${Date.now()}_${fileName}`.replace(/\s+/g, '_');
+
+                const buckets = ['training', 'docs', 'uploads', 'public'];
+                let lastErr = null;
+                for (const bucket of buckets) {
+                    try {
+                        const up = await sb.storage.from(bucket).upload(path, bin, { contentType: mime, upsert: true });
+                        if (up.error) throw up.error;
+                        const pub = sb.storage.from(bucket).getPublicUrl(path);
+                        const url = pub && pub.data && pub.data.publicUrl ? pub.data.publicUrl : '';
+                        if (!url) throw new Error('Public URL üretilemedi');
+                        return { result: 'success', url };
+                    } catch (e) {
+                        lastErr = e;
+                    }
+                }
+                return { result: 'error', message: (lastErr && lastErr.message) ? lastErr.message : 'Yükleme başarısız' };
+            }
+case "getQualityNotifications": {
+    // Admin/LocAdmin: temsilci notu bırakılmış ama yanıtlanmamış kayıtlar
+    // User: kendi kayıtlarında “Okundu=0” olanlar
+    const username = params.username || currentUser;
+    const role = (params.role || '').toString();
+
+    let pendingFeedbackCount = 0;
+    let unseenCount = 0;
+
+    if (role === 'admin' || role === 'locadmin') {
+        // Temsilci Notu dolu ve (Yönetici Cevabı boş veya Durum != Tamamlandı)
+        const { data, error } = await sb
+            .from('Evaluations')
+            .select('id,Durum,Temsilci Notu,Yönetici Cevabı');
+
+        if (!error) {
+            pendingFeedbackCount = (data || []).filter(r => {
+                const note = (r['Temsilci Notu'] || r.temsilciNotu || '').toString().trim();
+                if (!note) return false;
+                const reply = (r['Yönetici Cevabı'] || r.yoneticiCevabi || '').toString().trim();
+                const status = (r.Durum || r.durum || '').toString().trim();
+                return !reply || (status && status !== 'Tamamlandı');
+            }).length;
+        }
+    } else {
+        const { count, error } = await sb
+            .from('Evaluations')
+            .select('id', { count: 'exact', head: true })
+            .eq('AgentName', username)
+            .or('Okundu.is.null,Okundu.eq.0');
+
+        if (!error) unseenCount = count || 0;
+    }
+
+    return { result: "success", notifications: { pendingFeedbackCount, unseenCount } };
+}
             case "getBroadcastFlow": {
                 const { data, error } = await sb.from('YayinAkisi').select('*');
                 if (error) {
@@ -401,7 +640,12 @@ async function apiCall(action, params = {}) {
                 }
                 return { result: "success", items: (data || []).map(normalizeKeys) };
             }
-            case "deleteTechDoc": {
+            case "getData": {
+    const { data, error } = await sb.from('Data').select('*');
+    if (error) throw error;
+    return { result: "success", data: data || [] };
+}
+case "deleteTechDoc": {
                 const { error } = await sb.from('Teknik_Dokumanlar').delete().match({
                     Kategori: params.keyKategori,
                     Başlık: params.keyBaslik
@@ -766,6 +1010,16 @@ function checkSession() {
         }
 
         currentUser = savedUser;
+        // Token doğrulama (kick/aktif kullanıcı için). Tablo yoksa sessiz geç.
+        try {
+            (async () => {
+                const { data: tdata, error: terr } = await sb.from('Tokens').select('id').eq('Username', savedUser).eq('Token', savedToken).limit(1);
+                if (!terr && (!tdata || tdata.length === 0)) {
+                    logout();
+                }
+            })();
+        } catch (e) { }
+
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("user-display").innerText = currentUser;
         setHomeWelcomeUser(currentUser);
@@ -892,7 +1146,12 @@ async function girisYap() {
         // Oturum Verilerini Kaydet
         currentUser = data.Username;
         localStorage.setItem("sSportUser", currentUser);
-        localStorage.setItem("sSportToken", "sb_" + Math.random().toString(36).substr(2));
+        const __token = "sb_" + Math.random().toString(36).substr(2);
+        localStorage.setItem("sSportToken", __token);
+        // Token kaydı (aktif kullanıcı / kick için)
+        try {
+            await sb.from("Tokens").insert([{ Username: currentUser, Token: __token, Role: data.Role || "user", CreatedAt: new Date().toISOString(), IP: globalUserIP || "" }]);
+        } catch (e) { /* tablo yoksa sessiz geç */ }
         localStorage.setItem("sSportRole", data.Role);
         if (data.Group) localStorage.setItem("sSportGroup", data.Group);
         localStorage.setItem("sSportSessionDay", new Date().toISOString().slice(0, 10));
@@ -1086,32 +1345,6 @@ async function changePasswordPopup(isMandatory = false) {
             });
         }
     } else if (isMandatory) { changePasswordPopup(true); }
-}
-// --- DATA FETCHING (Supabase Optimized) ---
-async function loadContentData() {
-    try {
-        console.log("[Pusula] Fetching data from Supabase...");
-        const { data, error } = await sb
-            .from('Data')
-            .select('*');
-
-        if (error) throw error;
-
-        processRawData(data || []);
-        console.log("[Pusula] Data loaded successfully.");
-
-        // Barrier resolve
-        if (typeof __dataLoadedResolve === "function") __dataLoadedResolve();
-
-        // Post-render
-        if (typeof filterContent === "function") filterContent();
-        if (typeof startTicker === "function") startTicker();
-
-    } catch (err) {
-        console.error("[Pusula] Supabase Fetch Error:", err);
-        // Fallback to Apps Script if Supabase fails
-        apiCall("getData").then(res => processRawData(res.data)).catch(() => { });
-    }
 }
 // --- DATA PROCESSING (Refactored for Cache Support) ---
 function processRawData(rawData) {
@@ -2898,13 +3131,9 @@ function finishPenaltyGame() {
     if (optionsEl) optionsEl.style.display = 'none';
     if (restartBtn) restartBtn.style.display = 'block';
 
-    // Leaderboard log (mevcut backend uyumu)
-    fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "logQuiz", username: currentUser, token: getToken(), score: pScore * 10, total: 100 })
-    }).finally(() => {
-        // lobby tablosunu güncel tut
+    // Leaderboard log (Supabase)
+    apiCall("logQuiz", { username: currentUser, score: pScore * 10, total: 100 }).finally(() => {
+        // leaderboard tablosunu güncel tut
         setTimeout(fetchLeaderboard, 600);
     });
 }
@@ -6945,8 +7174,7 @@ async function __fetchTechDocs() {
             not: (r.Not || "").toString(),
             link: (r.Link || "").toString(),
             image: (r.Resim || r.Image || r.Görsel || r.Gorsel || "").toString(),
-            durum: (r.Durum || "").toString(),
-            id: r.id
+            durum: (r.Durum || "").toString()
         }))
         .filter(x => x.categoryKey && x.baslik);
 }
@@ -7184,12 +7412,8 @@ async function editTechDoc(tabKey, baslik) {
 
     Swal.fire({ title: 'Kaydediliyor...', didOpen: () => Swal.showLoading(), showConfirmButton: false });
     try {
-        const d = await apiCall("upsertTechDoc", {
-            keyKategori: it.kategori,
-            keyBaslik: it.baslik,
-            id: it.id,
-            ...v
-        });
+        const d = await apiCall('upsertTechDoc', { keyKategori: it.kategori, keyBaslik: it.baslik, ...v });
+
         if (d.result === 'success') {
             Swal.fire({ icon: 'success', title: 'Kaydedildi', timer: 1200, showConfirmButton: false });
             await loadTechDocsIfNeeded(true);
@@ -7217,12 +7441,7 @@ function deleteTechDoc(tabKey, baslik) {
             const all = await loadTechDocsIfNeeded(false);
             const it = all.find(x => x.categoryKey === tabKey && (x.baslik || '') === baslik);
             const keyKategori = it ? it.kategori : tabKey;
-
-            const d = await apiCall("deleteTechDoc", {
-                keyKategori: keyKategori,
-                keyBaslik: baslik,
-                id: it ? it.id : null
-            });
+            const d = await apiCall('deleteTechDoc', { keyKategori: keyKategori, keyBaslik: baslik });
 
             if (d.result === 'success') {
                 await loadTechDocsIfNeeded(true);
