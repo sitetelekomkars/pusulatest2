@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>S Sport Plus - Pusula</title>
-  <link rel="stylesheet" href="css/style.css?v=1.2">
+  <link rel="stylesheet" href="style.css?v=1.2">
   <link rel="icon" type="image/png" href="favicon.png">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -186,12 +186,17 @@
           <div class="home-card">
             <div class="home-card-head">
               <div class="home-card-title"><i class="fas fa-trophy" aria-hidden="true"></i> Arena Liderleri</div>
-              <button class="home-edit" style="display:inline-flex; background:rgba(250, 187, 0, 0.1); color:#fabb00; border:1px solid rgba(250, 187, 0, 0.2);" onclick="openPenaltyGame()" title="Arena'ya Git"><i class="fas fa-play"></i></button>
+              <button class="home-edit"
+                style="display:inline-flex; background:rgba(250, 187, 0, 0.1); color:#fabb00; border:1px solid rgba(250, 187, 0, 0.2);"
+                onclick="openPenaltyGame()" title="Arena'ya Git"><i class="fas fa-play"></i></button>
             </div>
-            <div id="home-leaderboard-loader" style="text-align:center; padding:15px; color:#999; font-size:0.8rem;">Yükleniyor...</div>
-            <table id="home-leaderboard-table" style="width:100%; font-size:0.8rem; border-collapse:collapse; display:none; margin-top:5px;">
+            <div id="home-leaderboard-loader" style="text-align:center; padding:15px; color:#999; font-size:0.8rem;">
+              Yükleniyor...</div>
+            <table id="home-leaderboard-table"
+              style="width:100%; font-size:0.8rem; border-collapse:collapse; display:none; margin-top:5px;">
               <thead>
-                <tr style="text-align:center; color:#999; border-bottom:1px solid #eee; font-size:0.7rem; text-transform:uppercase;">
+                <tr
+                  style="text-align:center; color:#999; border-bottom:1px solid #eee; font-size:0.7rem; text-transform:uppercase;">
                   <th style="padding:5px 2px">#</th>
                   <th style="padding:5px 2px; text-align:left;">Temsilci</th>
                   <th style="padding:5px 2px">Maç</th>
@@ -556,7 +561,7 @@
     </div>
   </div>
   <div class="crafted-by-badge">Crafted by Doğuş Yalçınkaya</div>
-  <script src="js/app.js?v=1.2"></script>
+  <script src="app.js?v=1.2"></script>
   <script>function toggleUserDropdown() {
       const dropdown = document.getElementById('userDropdown');
       const arrow = document.getElementById('user-menu-arrow');
