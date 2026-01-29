@@ -99,10 +99,20 @@ function normalizeKeys(obj) {
         if (k === 'Görsel' || k === 'Image' || k === 'Link') { n.image = obj[k]; n.link = obj[k]; }
 
         // Yayın Akışı (Special table keys)
-        if (k === 'DATE') n.date = obj[k];
-        if (k === 'EVENT NAME - Turkish') n.match = obj[k];
+        if (k === 'DATE') { n.date = obj[k]; n.dateISO = obj[k]; }
+        if (k === 'EVENT NAME - Turkish') { n.match = obj[k]; n.event = obj[k]; }
         if (k === 'KO/ START TIME TSİ') n.time = obj[k];
-        if (k === 'ANNOUNCER') n.channel = obj[k];
+        if (k === 'ANNOUNCER') { n.channel = obj[k]; n.announcer = obj[k]; }
+
+        // StartEpoch hesaplama (Yayın Akışı için)
+        if (n.date && n.time) {
+            try {
+                const datePart = String(n.date).includes('.') ? n.date.split('.').reverse().join('-') : n.date;
+                const isoStr = `${datePart.split(' ')[0]}T${n.time}`;
+                const dt = new Date(isoStr);
+                if (!isNaN(dt.getTime())) n.startEpoch = dt.getTime();
+            } catch (e) { }
+        }
 
         // Notlar / Detaylar
         if (k === 'Details' || k === 'Detay') n.details = obj[k];
@@ -1864,7 +1874,7 @@ async function fetchBroadcastFlow() {
     try {
         const { data, error } = await sb.from('YayinAkisi').select('*');
         if (error) throw error;
-        return data || [];
+        return (data || []).map(normalizeKeys);
     } catch (err) {
         console.error("[Pusula] YayinAkisi Fetch Error:", err);
         return [];
