@@ -106,10 +106,10 @@ function normalizeKeys(obj) {
         if (k === 'Görsel' || k === 'Image' || k === 'Link') { n.image = obj[k]; n.link = obj[k]; }
 
         // Yayın Akışı (Special table keys)
-        if (k === 'DATE') { n.date = obj[k]; n.dateISO = obj[k]; }
-        if (k === 'EVENT NAME - Turkish') { n.match = obj[k]; n.event = obj[k]; }
-        if (k === 'KO/ START TIME TSİ') n.time = obj[k];
-        if (k === 'ANNOUNCER') { n.channel = obj[k]; n.announcer = obj[k]; }
+        if (k === 'DATE' || k === 'Tarih' || k === 'tarih') { n.date = obj[k]; n.dateISO = obj[k]; }
+        if (k === 'EVENT NAME - Turkish' || k === 'Mac' || k === 'mac' || k === 'Event' || k === 'event' || k === 'Title' || k === 'Başlık') { n.match = obj[k]; n.event = obj[k]; }
+        if (k === 'KO/ START TIME TSİ' || k === 'Saat' || k === 'saat' || k === 'Time' || k === 'time') n.time = obj[k];
+        if (k === 'ANNOUNCER' || k === 'Kanal' || k === 'kanal' || k === 'Platform' || k === 'platform') { n.channel = obj[k]; n.announcer = obj[k]; }
 
         // StartEpoch hesaplama (Yayın Akışı için)
         const dVal = n.date || n.dateISO;
@@ -3397,18 +3397,7 @@ async function fetchEvaluationsForDashboard() {
     }
 }
 
-function safeParseDetails(details) {
-    if (!details) return [];
-    if (Array.isArray(details)) return details;
-    try {
-        if (typeof details === 'string') {
-            return JSON.parse(details);
-        }
-    } catch (e) {
-        console.warn("Details parse error:", e);
-    }
-    return [];
-}
+// safeParseDetails removed (using the one at 3259)
 function loadQualityDashboard() {
     // Verileri çek (silent mode), veri gelince grafikleri çiz
     fetchEvaluationsForDashboard().then(() => {
