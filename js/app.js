@@ -94,7 +94,8 @@ function normalizeKeys(obj) {
 
         // İçerik / Başlık / Metin
         if (k === 'Başlık' || k === 'Teklif Adı' || k === 'Title' || k === 'Key' || k === 'BlockId') { n.title = obj[k]; n.head = obj[k]; n.blockId = obj[k]; n.key = obj[k]; }
-        if (k === 'İçerik' || k === 'Açıklama' || k === 'Description' || k === 'Metin' || k === 'Script' || k === 'Soru_Metinleri' || k === 'Soru') { n.content = obj[k]; n.text = obj[k]; n.description = obj[k]; n.script = obj[k]; n.questions = obj[k]; }
+        if (k === 'İçerik' || k === 'Açıklama' || k === 'Description' || k === 'Metin' || k === 'Soru_Metinleri' || k === 'Soru' || k === 'Text') { n.content = obj[k]; n.text = obj[k]; n.description = obj[k]; n.questions = obj[k]; }
+        if (k === 'Script' || k === 'Senaryo') { n.script = obj[k]; }
         if (k === 'Kategori' || k === 'Segment' || k === 'TargetGroup' || k === 'Konu') { n.category = obj[k]; n.segment = obj[k]; n.group = obj[k]; n.subject = obj[k]; }
         if (k === 'Görsel' || k === 'Image' || k === 'Link') { n.image = obj[k]; n.link = obj[k]; }
 
@@ -122,10 +123,11 @@ function normalizeKeys(obj) {
 
         // --- SİHİRBAZLAR (Wizard / TechWizard) ---
         if (k === 'StepID' || k === 'StepId' || k === 'AdımID') n.stepId = obj[k];
-        if (k === 'Options' || k === 'Buttons' || k === 'Seçenekler' || k === 'Butonlar') n.options = obj[k];
+        if (k.toLowerCase().includes('option') || k.toLowerCase().includes('button') || k === 'Seçenekler' || k === 'Butonlar') {
+            if (!n.options || String(obj[k]).includes('|')) n.options = obj[k];
+        }
         if (k === 'Alert' || k === 'Uyarı') n.alert = obj[k];
         if (k === 'Result' || k === 'Sonuç') n.result = obj[k];
-        if (k === 'Script' || k === 'Senaryo') n.script = obj[k];
     });
     return n;
 }
@@ -6086,7 +6088,14 @@ function switchTechTab(tab) {
     }
 
     document.querySelectorAll('#tech-fullscreen .q-view-section').forEach(s => s.classList.remove('active'));
-    const el = document.getElementById(`x-view-${tab}`);
+
+    let targetView = tab;
+    if (tab === 'broadcast') {
+        targetView = 'wizard';
+        renderTechWizardInto('x-wizard');
+    }
+
+    const el = document.getElementById(`x-view-${targetView}`);
     if (el) el.classList.add('active');
 }
 
@@ -6285,18 +6294,18 @@ function renderTechSections() {
         inp.oninput = () => renderTechList(key, inp.value || '', listId);
     };
 
-    bindSearch('x-search-broadcast', 'broadcast', 'x-broadcast-list');
-    bindSearch('x-search-access', 'access', 'x-access-list');
-    bindSearch('x-search-app', 'app', 'x-app-list');
-    bindSearch('x-search-activation', 'activation', 'x-activation-list');
-    bindSearch('x-search-cards', 'cards', 'x-cards-list');
+    bindSearch('x-broadcast-search', 'broadcast', 'x-broadcast-list');
+    bindSearch('x-access-search', 'access', 'x-access-list');
+    bindSearch('x-app-search', 'app', 'x-app-list');
+    bindSearch('x-activation-search', 'activation', 'x-activation-list');
+    bindSearch('x-cards-search', 'cards', 'x-cards');
 
     // İlk çizim
     renderTechList('broadcast', '', 'x-broadcast-list');
     renderTechList('access', '', 'x-access-list');
     renderTechList('app', '', 'x-app-list');
     renderTechList('activation', '', 'x-activation-list');
-    renderTechList('cards', '', 'x-cards-list');
+    renderTechList('cards', '', 'x-cards');
 }
 
 let techEditMode = false;
